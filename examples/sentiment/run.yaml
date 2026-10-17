@@ -18,8 +18,8 @@ prompt:
     Text: {text}
 models:
   - openrouter/nvidia/nemotron-3-super-120b-a12b:free
-  - id: gemini/gemini-2.5-flash
-    label: Gemini 2.5 Flash
+  - id: gemini/gemini-3.5-flash
+    label: Gemini 3.5 Flash
 metrics:
   - name: accuracy
     labels: [positive, negative]

@@ -45,6 +45,7 @@ async def test_runs_all_models_and_rows() -> None:
     assert run_a.model_versions == ["openai/model-a-2026"]
     assert len(progress) == 10 and {p.total for p in progress} == {5}
     assert max(p.done for p in progress if p.model == "model-b") == 5
+    assert all(p.row is not None and p.row.record_id == p.record_id for p in progress)
     assert results.started_at and results.finished_at
 
 
@@ -215,3 +216,34 @@ def test_provider_messages_are_readable() -> None:
     assert "Request timed out after 30s" in provider_message(plain)
     assert not provider_message(plain).startswith(("litellm.", "Timeout"))
     assert len(provider_message(ValueError("x" * 1000))) == 300
+
+
+def test_zero_quota_is_fatal() -> None:
+    import litellm
+
+    from paperlab_space.runner.backend import _translate
+
+    litellm.suppress_debug_info = True
+    gemini = litellm.RateLimitError(
+        message='geminiException - {"error": {"code": 429, "message": "You exceeded your current '
+        "quota.\\n* Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, "
+        'model: gemini-3.1-pro"}}',
+        llm_provider="gemini",
+        model="gemini-3.1-pro-preview",
+    )
+    error = _translate(gemini, ModelSpec(id="gemini/gemini-3.1-pro-preview"))
+    assert isinstance(error, ProviderError) and error.fatal
+    assert "no quota" in str(error)
+    openai = litellm.RateLimitError(
+        message='{"error": {"message": "You exceeded your current quota.", '
+        '"code": "insufficient_quota"}}',
+        llm_provider="openai",
+        model="gpt-x",
+    )
+    assert isinstance(_translate(openai, ModelSpec(id="openai/gpt-x")), ProviderError)
+    slow = litellm.RateLimitError(
+        message='{"error": {"message": "Quota exceeded, limit: 10, retry in 30s"}}',
+        llm_provider="gemini",
+        model="m",
+    )
+    assert isinstance(_translate(slow, ModelSpec(id="gemini/m")), RetryableError)

@@ -27,6 +27,8 @@ class Progress:
     total: int
     record_id: str
     """The row that just finished."""
+    row: RowOutput | None = None
+    """Its output, so callers can checkpoint partial results (see ``previous`` in :func:`arun`)."""
 
 
 ProgressCallback = Callable[[Progress], None]
@@ -151,7 +153,7 @@ async def _run_model(
         done += 1
         failed += not row.ok
         if on_progress is not None:
-            on_progress(Progress(model.name, done, failed, total, row.record_id))
+            on_progress(Progress(model.name, done, failed, total, row.record_id, row))
 
     async def one(index: int) -> None:
         nonlocal fatal

@@ -15,7 +15,7 @@ pytestmark = pytest.mark.live
 
 MODELS = {
     "OPENROUTER_API_KEY": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
-    "GEMINI_API_KEY": "gemini/gemini-2.5-flash",
+    "GEMINI_API_KEY": "gemini/gemini-3.5-flash",
 }
 
 

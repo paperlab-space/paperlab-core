@@ -20,7 +20,7 @@ def test_sentiment_example() -> None:
     data = prepare_data(config, None)
     assert len(data) == 12 and data.validate().issues == []
     results = run(config, data, backend=FakeBackend(lambda m, p, a: "Positive."))
-    assert results.scores["Gemini 2.5 Flash"]["accuracy"].value == 0.5
+    assert results.scores["Gemini 3.5 Flash"]["accuracy"].value == 0.5
 
 
 def test_readme_python_snippet() -> None:
@@ -28,9 +28,9 @@ def test_readme_python_snippet() -> None:
     config = RunConfig(
         mapping=ColumnMapping(input="question", expected="answer"),
         prompt="Answer briefly: {question}",
-        models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
+        models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-3.5-flash"],
         metrics=["exact_match", "token_f1"],
     )
     assert estimate(config, data).models[0].cost_usd == 0.0
     results = run(config, data, backend=FakeBackend(lambda m, p, a: "4"))
-    assert results.scores["gemini-2.5-flash"]["exact_match"].value == 1.0
+    assert results.scores["gemini-3.5-flash"]["exact_match"].value == 1.0

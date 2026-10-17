@@ -19,8 +19,8 @@ doi: 10.5281/zenodo.23436738
 repository-code: "https://github.com/paperlab-space/paperlab-core"
 url: "https://paperlab.space"
 license: Apache-2.0
-version: 0.1.4
-date-released: 2026-10-17
+version: 0.1.5
+date-released: 2026-10-18
 keywords:
   - large language models
   - evaluation

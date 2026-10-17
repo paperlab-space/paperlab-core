@@ -173,6 +173,14 @@ def _translate(exc: Exception, model: ModelSpec) -> Exception:
             f"Model {model.id} was not found at {model.provider}. ({detail})", fatal=True
         )
     if isinstance(exc, litellm.RateLimitError):
+        if _no_quota(str(exc)):
+            # Retrying cannot help: the key has no quota at all for this model (e.g. a Pro
+            # model on Gemini's free tier, or an OpenAI account without credits).
+            return ProviderError(
+                f"Your {model.provider} key has no quota for {model.id}. Pick another model "
+                f"or enable billing with the provider. ({detail})",
+                fatal=True,
+            )
         return RetryableError(
             f"Rate limit or quota exceeded at {model.provider}: {detail}",
             retry_after=_retry_after(exc),
@@ -220,6 +228,14 @@ def provider_message(exc: Exception) -> str:
             detail = stripped
     detail = " ".join(str(detail).split())
     return detail if len(detail) <= MAX_MESSAGE else detail[: MAX_MESSAGE - 1] + "…"
+
+
+_ZERO_LIMIT = re.compile(r"\blimit:\s*0\b")
+
+
+def _no_quota(text: str) -> bool:
+    """Whether a rate-limit error means "no quota at all" rather than "slow down"."""
+    return bool(_ZERO_LIMIT.search(text)) or "insufficient_quota" in text
 
 
 def _retry_after(exc: Exception) -> float | None:

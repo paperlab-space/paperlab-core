@@ -54,7 +54,7 @@ prompt: |-
   Text: {text}
 models:
   - openrouter/nvidia/nemotron-3-super-120b-a12b:free
-  - id: gemini/gemini-2.5-flash
+  - id: gemini/gemini-3.5-flash
     temperature: 0
 metrics:
   - name: accuracy
@@ -83,12 +83,12 @@ data = load_dataset("my_data.xlsx", sheet="test")
 config = RunConfig(
     mapping=ColumnMapping(input="question", expected="answer"),
     prompt="Answer briefly: {question}",
-    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
+    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-3.5-flash"],
     metrics=["exact_match", "token_f1"],
 )
 print(estimate(config, data))
 results = run(config, data)
-print(results.scores["gemini-2.5-flash"]["exact_match"].value)
+print(results.scores["gemini-3.5-flash"]["exact_match"].value)
 export.write_all(results, "results/")
 ```
 

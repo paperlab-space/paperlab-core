@@ -56,7 +56,7 @@ print(data.map(mapping).validate())  # empty cells, duplicate IDs, encoding issu
 config = RunConfig(
     mapping=mapping,
     prompt="Translate to English: {sentence}",
-    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
+    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-3.5-flash"],
     metrics=["exact_match", "token_f1"],
 )
 print(estimate(config, data))  # tokens, cost, time per model
