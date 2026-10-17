@@ -26,8 +26,9 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
-console = Console()
-err = Console(stderr=True)
+# emoji=False: model IDs like `x:free:` must not turn into emoji.
+console = Console(emoji=False)
+err = Console(stderr=True, emoji=False)
 
 _EXPECTED_HINTS = ("expected", "gold", "answer", "label", "reference", "target", "output", "ref")
 _ID_HINTS = ("id", "row_id", "index", "no", "no.", "#")

@@ -50,3 +50,17 @@ def test_unknown_price() -> None:
     )
     result = estimate(config, data, backend=FakeBackend(price=None))
     assert result.cost_usd is None and result.models[0].output_tokens == 50
+
+
+def test_reasoning_model_warning() -> None:
+    data = Dataset.from_records([{"q": "x"}])
+    config = RunConfig.from_dict(
+        {
+            "mapping": {"input": "q"},
+            "prompt": "{q}",
+            "models": ["gemini/gemini-2.5-flash", "openai/gpt-4o-mini"],
+        }
+    )
+    thinking, plain = estimate(config, data).models
+    assert any("reasoning model" in w for w in thinking.warnings)
+    assert not any("reasoning model" in w for w in plain.warnings)

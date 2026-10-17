@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from paperlab_core.config import RunConfig
 from paperlab_core.data.load import Dataset
 from paperlab_core.data.mapping import MappedDataset
-from paperlab_core.runner.backend import Backend, lookup_price
+from paperlab_core.runner.backend import Backend, is_reasoning_model, lookup_price
 from paperlab_core.runner.ratelimit import default_rpm
 
 # Daily caps worth warning about. OpenRouter limits ``:free`` models per day per account
@@ -116,6 +116,12 @@ def estimate(
                 f"{requests} requests may exceed OpenRouter's daily limit for free models "
                 f"(as low as {OPENROUTER_FREE_DAILY_REQUESTS}/day without purchased credits). "
                 "The run will retry, but may not finish today."
+            )
+        if is_reasoning_model(model):
+            warnings.append(
+                "This is a reasoning model: hidden thinking tokens are billed as output and can "
+                "make the real cost several times higher than this estimate. Set max_tokens, or "
+                "a provider option such as reasoning_effort, to cap it."
             )
         if model.provider == "gemini":
             warnings.append(

@@ -102,14 +102,21 @@ class LiteLLMBackend:
 
         text = response.choices[0].message.content or ""
         usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "prompt_tokens", None)
+        output_tokens = getattr(usage, "completion_tokens", None)
         try:
-            cost = float(litellm.completion_cost(completion_response=response))
+            cost: float | None = float(litellm.completion_cost(completion_response=response))
         except Exception:
+            # LiteLLM does not know every model (e.g. OpenRouter free models); fall back to
+            # our own price lookup.
+            price = lookup_price(model)
             cost = None
+            if price is not None and input_tokens is not None and output_tokens is not None:
+                cost = input_tokens * price[0] + output_tokens * price[1]
         return Completion(
             text=text,
-            input_tokens=getattr(usage, "prompt_tokens", None),
-            output_tokens=getattr(usage, "completion_tokens", None),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             cost_usd=cost,
             model_version=getattr(response, "model", None),
         )
@@ -136,6 +143,16 @@ def lookup_price(model: ModelSpec) -> tuple[float, float] | None:
                 info.get("output_cost_per_token", 0.0)
             )
     return None
+
+
+def is_reasoning_model(model: ModelSpec) -> bool:
+    """Whether the model "thinks" before answering, billing hidden reasoning tokens."""
+    import litellm
+
+    try:
+        return bool(litellm.supports_reasoning(model=model.id))
+    except Exception:
+        return False
 
 
 def _translate(exc: Exception, model: ModelSpec) -> Exception:
