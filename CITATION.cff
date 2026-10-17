@@ -1,13 +1,23 @@
 cff-version: 1.2.0
 message: "If you use paperlab-space in your research, please cite it as below."
 title: "paperlab-space: no-code LLM evaluation on spreadsheet data"
+abstract: >-
+  paperlab-space is the open-source engine behind PaperLab.space. It evaluates large
+  language models on researchers' own Excel or CSV data and produces paper-ready
+  results: per-row outputs and scores in Excel, a LaTeX comparison table, and a
+  reproducibility config recording model versions, prompts, seeds, metric settings,
+  and a hash of the data. It supports many providers through LiteLLM, rate-limit-aware
+  runs with retries and resume, and metrics that handle non-Latin scripts such as
+  Burmese, Thai, Chinese, and Japanese.
 type: software
 authors:
-  - name: "PaperLab.space contributors"
+  # Full name kept as one string (Burmese names have no family-name part).
+  - family-names: "Kaung Nay Lin Khant"
+    orcid: "https://orcid.org/0009-0005-5612-5755"
 repository-code: "https://github.com/paperlab-space/paperlab-core"
 url: "https://paperlab.space"
 license: Apache-2.0
-version: 0.1.1
+version: 0.1.2
 date-released: 2026-10-17
 keywords:
   - large language models

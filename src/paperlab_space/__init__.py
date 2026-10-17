@@ -7,7 +7,7 @@
 >>> export.write_all(results, "results/")                     # doctest: +SKIP
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from paperlab_space import export
 from paperlab_space.config import DatasetSpec, MetricSpec, ModelSpec, RetrySettings, RunConfig

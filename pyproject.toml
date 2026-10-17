@@ -6,7 +6,7 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-authors = [{ name = "PaperLab.space contributors" }]
+authors = [{ name = "Kaung Nay Lin Khant" }]
 keywords = ["llm", "evaluation", "research", "benchmark", "latex"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
