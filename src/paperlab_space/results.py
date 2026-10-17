@@ -112,9 +112,9 @@ class RunResults:
             "environment": self.environment,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
-            "config": self.config.to_dict(),
+            "config": self._shareable_config(),
             "dataset": {
-                "source": dataset.source,
+                "source": Path(dataset.source).name if dataset.source else None,
                 "sheet": dataset.sheet,
                 "sha256": dataset.sha256,
                 "columns": dataset.columns,
@@ -126,6 +126,14 @@ class RunResults:
                 for model, metrics in self.scores.items()
             },
         }
+
+    def _shareable_config(self) -> dict[str, Any]:
+        # Keep only the file name of a local dataset path, so sharing results.json does not
+        # reveal folder names (the same rule as the reproducibility config).
+        config = self.config.to_dict()
+        if config.get("dataset"):
+            config["dataset"]["path"] = Path(config["dataset"]["path"]).name
+        return config
 
     def save_json(self, path: str | Path) -> None:
         Path(path).write_text(

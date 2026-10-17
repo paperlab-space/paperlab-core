@@ -113,6 +113,7 @@ async def test_resume_reuses_successful_rows(tmp_path: Path) -> None:
     )
     path = tmp_path / "results.json"
     first.save_json(path)
+    assert str(tmp_path) not in path.read_text(encoding="utf-8") or first.config.dataset is None
     loaded = RunResults.load_json(path)
     backend = FakeBackend(lambda m, p, a: "new")
     second = await arun(
@@ -178,3 +179,39 @@ def test_default_rpm_and_backoff() -> None:
     assert 1.0 <= backoff_delay(1, settings) <= 2.0
     assert 5.0 <= backoff_delay(9, settings) <= 10.0
     assert backoff_delay(1, settings, retry_after=30) == 10
+
+
+def test_provider_messages_are_readable() -> None:
+    import litellm
+
+    from paperlab_space.runner.backend import _translate, provider_message
+
+    litellm.suppress_debug_info = True
+    gemini = litellm.RateLimitError(
+        message='litellm.RateLimitError: geminiException - {\n "error": {\n  "code": 429,\n'
+        '  "message": "You exceeded your current quota, please check your plan.",\n'
+        '  "status": "RESOURCE_EXHAUSTED"\n }\n}',
+        llm_provider="gemini",
+        model="gemini-2.5-flash",
+    )
+    assert provider_message(gemini) == "You exceeded your current quota, please check your plan."
+    error = _translate(gemini, ModelSpec(id="gemini/gemini-2.5-flash"))
+    assert isinstance(error, RetryableError)
+    assert str(error) == (
+        "Rate limit or quota exceeded at gemini: You exceeded your current quota, please check "
+        "your plan."
+    )
+    openrouter = litellm.RateLimitError(
+        message='OpenrouterException - {"error":{"message":"Provider returned error",'
+        '"metadata":{"raw":"x:free is temporarily rate-limited upstream. Retry shortly."}}}',
+        llm_provider="openrouter",
+        model="x",
+    )
+    assert (
+        provider_message(openrouter)
+        == "x:free is temporarily rate-limited upstream. Retry shortly."
+    )
+    plain = litellm.Timeout(message="Request timed out after 30s", model="m", llm_provider="openai")
+    assert "Request timed out after 30s" in provider_message(plain)
+    assert not provider_message(plain).startswith(("litellm.", "Timeout"))
+    assert len(provider_message(ValueError("x" * 1000))) == 300

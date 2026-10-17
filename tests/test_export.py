@@ -71,6 +71,7 @@ def test_write_all(results: RunResults, tmp_path: Path) -> None:
     text = paths["repro"].read_text(encoding="utf-8")
     assert "sha256" in text and str(tmp_path) not in text  # no local paths leak
 
+    assert str(tmp_path) not in paths["json"].read_text(encoding="utf-8")  # no local paths
     again = RunResults.load_json(paths["json"])
     assert again.scores["Good_Model"]["f1"].value == results.scores["Good_Model"]["f1"].value
 

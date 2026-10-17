@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -158,19 +160,23 @@ def is_reasoning_model(model: ModelSpec) -> bool:
 def _translate(exc: Exception, model: ModelSpec) -> Exception:
     import litellm
 
-    message = f"{type(exc).__name__}: {exc}"
+    detail = provider_message(exc)
+    message = f"{model.provider} error: {detail}"
     if isinstance(exc, litellm.AuthenticationError | litellm.PermissionDeniedError):
         return ProviderError(
             f"The {model.provider} API key was rejected. Check that it is correct and has "
-            f"access to {model.id}. ({exc})",
+            f"access to {model.id}. ({detail})",
             fatal=True,
         )
     if isinstance(exc, litellm.NotFoundError):
         return ProviderError(
-            f"Model {model.id} was not found at {model.provider}. ({exc})", fatal=True
+            f"Model {model.id} was not found at {model.provider}. ({detail})", fatal=True
         )
     if isinstance(exc, litellm.RateLimitError):
-        return RetryableError(message, retry_after=_retry_after(exc))
+        return RetryableError(
+            f"Rate limit or quota exceeded at {model.provider}: {detail}",
+            retry_after=_retry_after(exc),
+        )
     if isinstance(
         exc,
         litellm.Timeout
@@ -185,6 +191,35 @@ def _translate(exc: Exception, model: ModelSpec) -> Exception:
     if isinstance(exc, litellm.APIError) and getattr(exc, "status_code", 500) >= 500:
         return RetryableError(message)
     return ProviderError(message)
+
+
+_JSON_STRING = r'"((?:[^"\\]|\\.)*)"'
+_RAW = re.compile(r'"raw"\s*:\s*' + _JSON_STRING)
+_MESSAGE = re.compile(r'"message"\s*:\s*' + _JSON_STRING)
+_PREFIX = re.compile(r"^(?:litellm\.)?(?:\w*(?:Error|Exception)|Timeout)\s*[:-]\s*")
+MAX_MESSAGE = 300
+
+
+def provider_message(exc: Exception) -> str:
+    """The provider's own error sentence, without LiteLLM's wrappers and JSON.
+
+    ``RateLimitError: litellm.RateLimitError: geminiException - {"error": {"message":
+    "You exceeded your current quota..."}}`` becomes ``You exceeded your current quota...``.
+    OpenRouter puts the upstream provider's message in ``metadata.raw``, which is preferred.
+    """
+    text = str(exc)
+    match = _RAW.search(text) or _MESSAGE.search(text)
+    if match:
+        try:
+            detail = json.loads(f'"{match.group(1)}"')
+        except ValueError:
+            detail = match.group(1)
+    else:
+        detail = text
+        while (stripped := _PREFIX.sub("", detail, count=1)) != detail:
+            detail = stripped
+    detail = " ".join(str(detail).split())
+    return detail if len(detail) <= MAX_MESSAGE else detail[: MAX_MESSAGE - 1] + "…"
 
 
 def _retry_after(exc: Exception) -> float | None:
