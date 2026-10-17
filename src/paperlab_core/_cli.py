@@ -80,7 +80,7 @@ def init(
         "dataset": {"path": str(relative), "sheet": dataset.sheet},
         "mapping": {"input": inputs, "context": [], "expected": expected, "id": id_col},
         "prompt": f"{{{inputs[0]}}}",
-        "models": ["openrouter/meta-llama/llama-3.3-70b-instruct:free", "gemini/gemini-2.5-flash"],
+        "models": ["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
         "metrics": ["exact_match"] if expected else [],
         "seed": 42,
     }

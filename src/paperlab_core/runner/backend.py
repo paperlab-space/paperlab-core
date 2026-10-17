@@ -76,6 +76,7 @@ class LiteLLMBackend:
     ) -> Completion:
         import litellm
 
+        litellm.suppress_debug_info = True  # no "Give Feedback / Get Help" banner per error
         kwargs: dict[str, Any] = {
             "model": model.id,
             "messages": messages,

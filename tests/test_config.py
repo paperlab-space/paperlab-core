@@ -16,7 +16,7 @@ mapping:
   expected: gold
 prompt: "Translate to English: {sentence}"
 models:
-  - openrouter/meta-llama/llama-3.3-70b-instruct:free
+  - openrouter/nvidia/nemotron-3-super-120b-a12b:free
   - id: gemini/gemini-2.5-flash
     temperature: 0.7
     label: Gemini Flash
@@ -35,7 +35,7 @@ def test_yaml_roundtrip(tmp_path: Path) -> None:
     assert config.dataset is not None
     assert config.dataset.path == str((tmp_path / "data/test.xlsx").resolve())
     assert [m.name for m in config.models] == [
-        "meta-llama/llama-3.3-70b-instruct:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
         "Gemini Flash",
     ]
     assert config.models[0].provider == "openrouter"
