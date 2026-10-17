@@ -20,97 +20,101 @@ The platform calls core through its public API only. If the platform needs a hoo
 ## Tech choices
 
 - Python ≥ 3.10, `src/` layout, built with hatchling, managed with `uv`
-- `pandas` + `openpyxl` for Excel/CSV
-- `pydantic` v2 for all config and data models (serialisable, validated)
-- `litellm` for one interface to every provider
-- `asyncio` runner with a token-bucket limiter keyed by `(provider, model)`
-- `jinja2`-free templating: Python `str.format`-style `{column}` placeholders with clear errors for missing columns
-- `ruff` for lint/format, `pytest` for tests, `mypy` for types
-- `typer` for the CLI (optional extra: `pip install paperlab-core[cli]`)
+- `openpyxl` + the standard `csv` module for input (no pandas: lighter installs and full control over cell-to-text conversion), `charset-normalizer` for legacy CSV encodings
+- `pydantic` v2 for config models (serialisable, validated, clear error messages)
+- `litellm` for one interface to every provider, imported lazily so `import paperlab_core` stays fast
+- `asyncio` runner with an even-spacing rate limiter per model
+- Own `{column}` placeholder syntax (column names may contain spaces; `{{`/`}}` for literal braces)
+- `ruff` for lint/format, `pytest` for tests, `mypy --strict` for types
+- `typer` for the CLI (optional extra: `pip install 'paperlab-core[cli]'`)
 
 ## Package layout
 
 ```
 src/paperlab_core/
-  data/        load.py, mapping.py, validate.py, jsonl.py
+  data/        load.py (Excel/CSV -> Dataset), mapping.py (ColumnMapping, JSONL), validate.py
   prompt.py    PromptTemplate
-  runner/      runner.py, ratelimit.py, retry.py, checkpoint.py, estimate.py
-  metrics/     base.py, exact_match.py, classification.py (accuracy, P/R/F1)
+  config.py    RunConfig, ModelSpec, MetricSpec (the single object describing a run)
+  runner/      backend.py (LiteLLM + Backend protocol), ratelimit.py, runner.py, estimate.py
+  metrics/     base.py (interface + registry), builtin.py, normalize.py
+  results.py   RunResults, JSON save/load
   export/      excel.py, latex.py, repro.py
-  config.py    RunConfig (the single object describing a run)
-  cli.py       `paperlab run config.yaml`
+  _cli.py      the `paperlab` command
 ```
 
-Central object: **`RunConfig`**, which holds data source, column mapping, prompt template, models (+ temperature, seed, max tokens), and metrics. The same object drives a run and is written out as the reproducibility config, so a run is reproducible from its exported config alone.
+Central object: **`RunConfig`**, which holds data source, column mapping, prompt template, models (+ temperature, seed, max tokens, rate limit), and metrics. The same object drives a run and is written out as the reproducibility config, so a run is reproducible from its exported config alone.
 
-## Public API sketch
+## Public API
 
 ```python
-from paperlab_core import load_dataset, ColumnMapping, PromptTemplate, RunConfig, run, export
+from paperlab_core import ColumnMapping, RunConfig, estimate, export, load_dataset, run
 
-ds = load_dataset("data.xlsx", sheet="test")
-ds = ds.map(ColumnMapping(input="sentence", expected="gold", id="row_id"))
-report = ds.validate()  # empty cells, duplicate IDs, encoding issues
+data = load_dataset("data.xlsx", sheet="test")
+mapping = ColumnMapping(input="sentence", expected="gold", id="row_id")
+print(data.map(mapping).validate())  # empty cells, duplicate IDs, encoding issues
 
-cfg = RunConfig(
-    prompt=PromptTemplate("Translate to English: {sentence}"),
-    models=["openrouter/meta-llama/llama-3.3-70b-instruct:free", "gemini/gemini-2.5-flash"],
-    metrics=["exact_match", "accuracy", "f1"],
+config = RunConfig(
+    mapping=mapping,
+    prompt="Translate to English: {sentence}",
+    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
+    metrics=["exact_match", "token_f1"],
 )
-print(cfg.estimate(ds))  # tokens, cost, time per model
-results = run(ds, cfg, on_progress=print)
-export.excel(results, "results.xlsx")
-export.latex(results, "table.tex")
-export.repro(cfg, "run.yaml")
+print(estimate(config, data))  # tokens, cost, time per model
+results = run(config, data, on_progress=print)
+export.write_all(results, "results/")  # results.xlsx, table.tex, run.yaml, results.json
 ```
+
+The platform plugs in through: `LiteLLMBackend(api_keys=...)` (keys never enter configs or results), the `Backend` protocol, `on_progress`, `arun` for its own event loop, and `previous=` / `RunResults.load_json` to resume.
 
 ## Milestones
 
-Each milestone ends with a tagged release once tests pass.
+### M0: Skeleton ✅
+- Package, CI, license, README, plan
 
-### M0: Skeleton (this commit)
-- Package, CI (ruff + pytest on 3.10–3.13), license, README, plan
+### M1: Data in ✅
+- Load `.xlsx` (multiple sheets), `.csv`, `.tsv`; UTF-8/BOM first, then encoding detection (tested with CP874 Thai, Shift-JIS, GBK)
+- Unicode NFC normalisation; fixtures in Burmese, Thai, Chinese, Japanese, Korean
+- Excel cell types converted to text predictably (`2.0` -> `2`, dates -> ISO); blank/duplicate headers fixed
+- `ColumnMapping`: input column(s), context columns, expected column, row ID, multiple answers via delimiter; the expected column can never leak into the prompt
+- Validation report: empty cells, empty/duplicate IDs, mojibake, invisible characters
+- JSONL conversion + preview
 
-### M1: Data in (`0.1.0`)
-- Load `.xlsx` (multiple sheets) and `.csv`, with encoding detection and Unicode-safe handling for non-Latin scripts (test fixtures in Burmese, Thai, Chinese, Japanese, Korean)
-- `ColumnMapping`: input column(s), extra context columns, expected-output column, optional row ID
-- Multiple valid answers per row via delimiter
-- Validation report: empty cells, duplicate IDs, mixed types, encoding problems
-- JSONL conversion + preview (`ds.preview(n=5)`)
+### M2: Prompt + runner ✅
+- `PromptTemplate` (user + optional system prompt) checked against mapped columns
+- Async runner over LiteLLM; tested live against **OpenRouter** and **Gemini**
+- Rate limits per model: OpenRouter `:free` 20/min, Gemini Flash 10/min, Gemini Pro 5/min; overridable
+- Retries with exponential backoff + jitter, honouring `Retry-After`; a rejected API key or unknown model stops that model immediately instead of failing every row
+- Resume: rows that succeeded in an earlier run are reused (pulled forward from v1.1)
+- Pre-run estimate: tokens (script-aware heuristic), cost (LiteLLM price table), wall time, warnings (OpenRouter daily caps, Gemini free-tier data use)
+- Works in scripts and Jupyter
 
-### M2: Prompt + runner (`0.2.0`)
-- `PromptTemplate` with variable checking against mapped columns
-- Async runner over LiteLLM; providers for MVP: **OpenRouter** and **Gemini**
-- Per-`(provider, model)` rate limiter with sensible defaults (OpenRouter `:free` ≈ 20 req/min, Gemini free ≈ 5–10 req/min), overridable
-- Retries with exponential backoff + jitter on 429/5xx/timeouts
-- Pre-run estimate: tokens, cost, wall time
-- Progress callback hook
-- Tests use a fake LiteLLM backend; no network in CI
+### M3: Metrics ✅
+- Metric interface (`compute(predictions, references) -> MetricResult`) with a registry so users can add their own
+- `exact_match`, `accuracy` (optional label extraction from chatty answers), `f1` (macro/micro/weighted, per-class), `token_f1` (character tokens for Chinese, Japanese, Thai, Burmese)
+- Configurable normalisation (NFKC, case, punctuation), recorded in the reproducibility config
+- Multi-answer support; failed requests count as wrong unless `count_failed: false`
+- Metrics are checked before any request is sent
 
-### M3: Metrics (`0.3.0`)
-- Metric interface: `score_row(output, expected) -> float` + `aggregate(scores) -> dict`
-- Exact match (with normalisation options: case, whitespace, punctuation), accuracy, precision/recall/F1 (macro and micro)
-- Multi-answer support (best match across valid answers)
+### M4: Export ✅
+- Excel: Summary (scores, failures, cost, tokens), Outputs (per-row outputs and scores), Config sheets; formula injection blocked
+- LaTeX: booktabs table, best score bolded, escaped names, percent or raw
+- Reproducibility YAML: core/LiteLLM/Python versions, provider-reported model versions, dataset SHA-256, full config (dataset path reduced to file name); loads back with `RunConfig.from_yaml`
+- Full results JSON for resuming and sharing
 
-### M4: Export (`0.4.0`)
-- Excel: per-row inputs, each model's output, per-row scores; summary sheet
-- LaTeX: summary comparison table (booktabs, best score bolded), ready to `\input{}`
-- Reproducibility config (YAML): core version, model IDs, prompt, temperature, seed, metric settings, dataset hash
+### M5: CLI + first release (in progress)
+- ✅ `paperlab init | validate | estimate | run [--resume] | metrics`
+- ✅ `CITATION.cff`, release workflow (PyPI trusted publishing)
+- ⬜ Configure the PyPI trusted publisher, then publish `0.1.0`
+- ⬜ Docs site (mkdocs-material)
 
-### M5: CLI + first public release (`1.0.0`)
-- `paperlab run run.yaml`, `paperlab validate data.xlsx`, `paperlab estimate run.yaml`
-- Docs site (mkdocs-material) with a 5-minute quickstart
-- PyPI publishing via GitHub Actions trusted publishing
-- `CITATION.cff` so researchers can cite the tool
-
-### After 1.0 (matches the product roadmap)
-- v1.1: separate answer-key file joined by row ID; BLEU, chrF, ROUGE (`sacrebleu`, `rouge-score`); more providers incl. Ollama; checkpoint/resume after failure
+### After 0.1 (matches the product roadmap)
+- v1.1: separate answer-key file joined by row ID; BLEU, chrF, ROUGE (`sacrebleu`, `rouge-score`); Ollama and more providers documented and tested; Zawgyi detection for Burmese input
 - v1.2: LLM-as-judge (with reference, and rubric-only with user rubric); significance tests and bootstrap confidence intervals
 - v2: inter-annotator agreement metrics (Cohen's/Fleiss' kappa, Krippendorff's alpha)
 
 ## Quality bar
 
-- Every public function typed and documented
-- No network access in unit tests; an opt-in `-m live` marker for real-provider smoke tests
+- Every public function typed (`mypy --strict`) and documented
+- No network access in unit tests; `uv run pytest -m live` for real-provider smoke tests
 - Deterministic outputs given the same config + seed where providers allow it
 - Semantic versioning; the reproducibility config records the exact core version

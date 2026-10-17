@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use paperlab-core in your research, please cite it as below."
+title: "paperlab-core: no-code LLM evaluation on spreadsheet data"
+type: software
+authors:
+  - name: "PaperLab.space contributors"
+repository-code: "https://github.com/paperlab-space/paperlab-core"
+url: "https://paperlab.space"
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-10-17
+keywords:
+  - large language models
+  - evaluation
+  - reproducibility
+  - multilingual

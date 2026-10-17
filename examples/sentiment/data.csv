@@ -1,0 +1,13 @@
+id,language,text,label
+1,English,"I loved this film, the acting was wonderful.",positive
+2,English,The service was slow and the food was cold.,negative
+3,Burmese,ဒီစာအုပ်က အရမ်းကောင်းတယ်။,positive
+4,Burmese,ဒီဆိုင်ရဲ့ ဝန်ဆောင်မှု မကောင်းဘူး။,negative
+5,Thai,อาหารร้านนี้อร่อยมาก,positive
+6,Thai,โรงแรมนี้สกปรกและเสียงดัง,negative
+7,Chinese,这部手机非常好用，我很满意。,positive
+8,Chinese,快递太慢了，包装也破了。,negative
+9,Japanese,この映画は本当に感動しました。,positive
+10,Japanese,このアプリはすぐに落ちるので使えない。,negative
+11,Korean,이 카페 커피가 정말 맛있어요.,positive
+12,Korean,배송이 너무 늦고 제품도 불량이에요.,negative

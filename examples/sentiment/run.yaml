@@ -1,0 +1,28 @@
+# Multilingual sentiment classification with two free models.
+#   export OPENROUTER_API_KEY=...  GEMINI_API_KEY=...
+#   paperlab estimate run.yaml
+#   paperlab run run.yaml
+dataset:
+  path: data.csv
+mapping:
+  input: text
+  context: [language]
+  expected: label
+  id: id
+prompt:
+  system: You are a careful annotator for sentiment analysis research.
+  user: |-
+    Classify the sentiment of this {language} text as "positive" or "negative".
+    Answer with one word.
+
+    Text: {text}
+models:
+  - openrouter/nvidia/nemotron-3-super-120b-a12b:free
+  - id: gemini/gemini-2.5-flash
+    label: Gemini 2.5 Flash
+metrics:
+  - name: accuracy
+    labels: [positive, negative]
+  - name: f1
+    labels: [positive, negative]
+seed: 42

@@ -1,27 +1,125 @@
 # paperlab-core
 
-Open-source engine for evaluating LLMs on your own spreadsheet data and getting paper-ready results.
+Evaluate LLMs on your own spreadsheet data and get paper-ready results.
 
-Upload an Excel or CSV file, map columns, pick models and metrics, run, and export results as Excel, a LaTeX table, and a reproducibility config. `paperlab-core` is the library behind [PaperLab.space](https://paperlab.space), and you can use it directly from Python or the command line.
+Give it an Excel or CSV file, say which columns are inputs and answers, pick models and metrics, and get back an Excel workbook of outputs and scores, a LaTeX table for your paper, and a reproducibility config. `paperlab-core` is the open-source engine behind [PaperLab.space](https://paperlab.space); use it from the command line or from Python.
 
-> **Status:** pre-alpha. See [PLAN.md](PLAN.md) for the roadmap.
+- **Spreadsheets in:** `.xlsx` (any sheet), `.csv`, `.tsv`, with encoding detection and Unicode-safe handling for non-Latin scripts. Validation catches empty cells, duplicate IDs, and garbled text before you spend API calls.
+- **Any model:** OpenRouter (including free models), Gemini, OpenAI, Anthropic, Ollama, and everything else [LiteLLM](https://docs.litellm.ai/docs/providers) supports, run side by side. You bring your own API keys.
+- **Robust runs:** per-model rate limits tuned for free tiers, retries with backoff, and resume after interruption. A cost and time estimate is shown before anything is sent.
+- **Metrics:** exact match, accuracy (with label extraction from chatty answers), precision/recall/F1, token F1. Tokenisation handles Chinese, Japanese, Thai, and Burmese.
+- **Paper-ready output:** Excel, a booktabs LaTeX table, and a YAML config recording model versions, prompt, seed, metric settings, and a hash of your data.
 
-## Planned features
+> **Status:** early release (0.1). See [PLAN.md](PLAN.md) for the roadmap: BLEU/chrF/ROUGE, LLM-as-judge, and significance tests are next.
 
-- Excel (.xlsx, multi-sheet) and CSV input, with column mapping, validation, and JSONL conversion
-- Unicode-safe handling for non-Latin scripts
-- One interface to many providers via [LiteLLM](https://github.com/BerriAI/litellm) (OpenRouter, Gemini, OpenAI, Anthropic, Ollama, ...)
-- Rate-limit-aware runner with retries and cost/time estimates
-- Metrics: exact match, accuracy, precision/recall/F1, later BLEU, chrF, ROUGE, and LLM-as-judge
-- Exports: per-row Excel, LaTeX comparison table, reproducibility config
+## Install
+
+```bash
+pip install 'paperlab-core[cli]'
+```
+
+Until the first PyPI release, install from GitHub:
+
+```bash
+pip install 'paperlab-core[cli] @ git+https://github.com/paperlab-space/paperlab-core'
+```
+
+## Quickstart (command line)
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...   # free key from https://openrouter.ai
+export GEMINI_API_KEY=...             # free key from https://aistudio.google.com
+
+paperlab init my_data.xlsx            # writes run.yaml, guessing the column roles
+paperlab validate my_data.xlsx -i question -e answer   # check the data, preview JSONL
+paperlab estimate run.yaml            # tokens, cost, and time; no requests sent
+paperlab run run.yaml                 # writes results-run/
+```
+
+`run.yaml` looks like this (see [examples/sentiment](examples/sentiment)):
+
+```yaml
+dataset:
+  path: data.csv
+mapping:
+  input: text            # column(s) available to the prompt
+  context: [language]    # extra columns available to the prompt
+  expected: label        # the answer key (never shown to the model)
+  id: id
+prompt: |-
+  Classify the sentiment of this {language} text as "positive" or "negative".
+  Text: {text}
+models:
+  - openrouter/nvidia/nemotron-3-super-120b-a12b:free
+  - id: gemini/gemini-2.5-flash
+    temperature: 0
+metrics:
+  - name: accuracy
+    labels: [positive, negative]
+  - f1
+seed: 42
+```
+
+The output folder contains:
+
+| File | What it is |
+| --- | --- |
+| `results.xlsx` | Summary sheet (scores, failures, cost), per-row outputs and scores, and the config |
+| `table.tex` | A booktabs table to `\input{}` into your paper |
+| `run.yaml` | The reproducibility config: re-run with `paperlab run run.yaml` |
+| `results.json` | Everything, for `paperlab run run.yaml --resume results.json` after an interruption |
+
+Free models change often; `paperlab run` stops a model early with a clear message if its ID no longer exists. Browse current free models at [openrouter.ai/models](https://openrouter.ai/models?q=free).
+
+## Quickstart (Python)
+
+```python
+from paperlab_core import ColumnMapping, RunConfig, estimate, export, load_dataset, run
+
+data = load_dataset("my_data.xlsx", sheet="test")
+config = RunConfig(
+    mapping=ColumnMapping(input="question", expected="answer"),
+    prompt="Answer briefly: {question}",
+    models=["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "gemini/gemini-2.5-flash"],
+    metrics=["exact_match", "token_f1"],
+)
+print(estimate(config, data))
+results = run(config, data)
+print(results.scores["gemini-2.5-flash"]["exact_match"].value)
+export.write_all(results, "results/")
+```
+
+`run` works in scripts and Jupyter notebooks. Use `await arun(...)` inside your own async code.
+
+## Metrics
+
+Run `paperlab metrics` for the list. Every metric takes normalisation options in the config:
+
+```yaml
+metrics:
+  - exact_match                         # case-insensitive, trims punctuation like "Paris."
+  - name: exact_match
+    label: exact_match_strict           # same metric again with different options
+    ignore_case: false
+    trim_punctuation: false
+  - name: f1
+    average: macro                      # macro | micro | weighted
+```
+
+Custom metrics subclass `paperlab_core.metrics.Metric` and use the `@register` decorator.
+
+## Citing
+
+If paperlab-core helps your research, please cite it. See [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
 
 ## Development
 
 ```bash
 uv sync
-uv run pytest
+uv run pytest                   # unit tests, no network
+uv run pytest -m live           # real-provider smoke tests (needs API keys)
 uv run ruff check . && uv run ruff format --check .
-uv run mypy src
+uv run mypy src tests
 ```
 
 ## License
