@@ -14,18 +14,14 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 - **Metrics:** exact match, accuracy (with label extraction from chatty answers), precision/recall/F1, token F1. Tokenisation handles Chinese, Japanese, Thai, and Burmese.
 - **Paper-ready output:** Excel, a booktabs LaTeX table, and a YAML config recording model versions, prompt, seed, metric settings, and a hash of your data.
 
+[![PyPI](https://img.shields.io/pypi/v/paperlab-space)](https://pypi.org/project/paperlab-space/)
+
 > **Status:** early release (0.1). See [PLAN.md](PLAN.md) for the roadmap: BLEU/chrF/ROUGE, LLM-as-judge, and significance tests are next.
 
 ## Install
 
 ```bash
 pip install 'paperlab-space[cli]'
-```
-
-Until the first PyPI release, install from GitHub:
-
-```bash
-pip install 'paperlab-space[cli] @ git+https://github.com/paperlab-space/paperlab-core'
 ```
 
 ## Quickstart (command line)
