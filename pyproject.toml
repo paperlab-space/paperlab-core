@@ -25,6 +25,9 @@ dependencies = [
 [project.optional-dependencies]
 cli = ["typer>=0.12"]
 
+[project.scripts]
+paperlab = "paperlab_core.cli:main"
+
 [project.urls]
 Homepage = "https://paperlab.space"
 Repository = "https://github.com/paperlab-space/paperlab-core"
