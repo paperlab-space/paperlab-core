@@ -1,7 +1,7 @@
 # PaperLab.space core
 
 ```bash
-pip install 'paperlab-space[cli]'
+pip install paperlab-space
 ```
 
 Evaluate LLMs on your own spreadsheet data and get paper-ready results.
@@ -21,8 +21,10 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 ## Install
 
 ```bash
-pip install 'paperlab-space[cli]'
+pip install paperlab-space
 ```
+
+This installs both the Python library and the `paperlab-space` command.
 
 ## Quickstart (command line)
 

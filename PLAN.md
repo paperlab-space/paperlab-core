@@ -26,7 +26,7 @@ The platform calls core through its public API only. If the platform needs a hoo
 - `asyncio` runner with an even-spacing rate limiter per model
 - Own `{column}` placeholder syntax (column names may contain spaces; `{{`/`}}` for literal braces)
 - `ruff` for lint/format, `pytest` for tests, `mypy --strict` for types
-- `typer` for the CLI (optional extra: `pip install 'paperlab-space[cli]'`)
+- `typer` for the CLI, included in the base install (an optional extra saved only ~8 MB next to LiteLLM, and tripped up non-programmers)
 
 ## Package layout
 

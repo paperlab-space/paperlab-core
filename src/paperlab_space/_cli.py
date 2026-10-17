@@ -1,4 +1,4 @@
-"""The ``paperlab-space`` command (needs the extra: ``pip install 'paperlab-space[cli]'``)."""
+"""The ``paperlab-space`` command."""
 
 from __future__ import annotations
 

@@ -1741,10 +1741,6 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pydantic" },
     { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-cli = [
     { name = "typer" },
 ]
 
@@ -1754,7 +1750,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
-    { name = "typer" },
     { name = "types-openpyxl" },
     { name = "types-pyyaml" },
 ]
@@ -1766,7 +1761,7 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "typer", marker = "extra == 'cli'", specifier = ">=0.12" },
+    { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["cli"]
 
@@ -1776,7 +1771,6 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "ruff", specifier = ">=0.6" },
-    { name = "typer", specifier = ">=0.12" },
     { name = "types-openpyxl" },
     { name = "types-pyyaml" },
 ]

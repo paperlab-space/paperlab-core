@@ -20,10 +20,13 @@ dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "litellm>=1.50",
+    "typer>=0.12",
 ]
 
 [project.optional-dependencies]
-cli = ["typer>=0.12"]
+# The CLI is part of the base install; this empty extra keeps
+# `pip install 'paperlab-space[cli]'` (from the 0.1.0 docs) working.
+cli = []
 
 [project.scripts]
 paperlab-space = "paperlab_space.cli:main"
@@ -40,7 +43,6 @@ dev = [
     "mypy>=1.11",
     "types-openpyxl",
     "types-pyyaml",
-    "typer>=0.12",
 ]
 
 [build-system]
