@@ -9,7 +9,7 @@ import os
 
 import pytest
 
-from paperlab_core import Dataset, RunConfig, run
+from paperlab_space import Dataset, RunConfig, run
 
 pytestmark = pytest.mark.live
 

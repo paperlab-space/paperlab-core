@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from paperlab_core import ColumnMapping, Dataset, RunConfig, estimate, run
-from paperlab_core.runner import prepare_data
+from paperlab_space import ColumnMapping, Dataset, RunConfig, estimate, run
+from paperlab_space.runner import prepare_data
 
 from .fakes import FakeBackend
 

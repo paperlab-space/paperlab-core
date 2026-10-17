@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-from paperlab_core.results import RunResults
+from paperlab_space.results import RunResults
 
 
 def reproducibility(results: RunResults) -> dict[str, Any]:
@@ -23,7 +23,7 @@ def reproducibility(results: RunResults) -> dict[str, Any]:
     elif source_name:
         config["dataset"] = {"path": source_name, "sheet": dataset.sheet}
     return {
-        "paperlab_core": results.environment.get("paperlab-core", "unknown"),
+        "paperlab_space": results.environment.get("paperlab-space", "unknown"),
         "created": results.finished_at,
         "environment": results.environment,
         "data": {
@@ -43,7 +43,10 @@ def write_repro(results: RunResults, path: str | Path) -> Path:
     path = Path(path)
     text = yaml.safe_dump(reproducibility(results), allow_unicode=True, sort_keys=False)
     path.write_text(
-        "# PaperLab reproducibility config. Re-run with: paperlab run " + path.name + "\n" + text,
+        "# PaperLab reproducibility config. Re-run with: paperlab-space run "
+        + path.name
+        + "\n"
+        + text,
         encoding="utf-8",
     )
     return path

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from paperlab_core.errors import TemplateError
+from paperlab_space.errors import TemplateError
 
 # ``{{`` and ``}}`` are literal braces; ``{name}`` is a placeholder. Column names may
 # contain spaces and any non-brace characters, e.g. ``{Source sentence}``.

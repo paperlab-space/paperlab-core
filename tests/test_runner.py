@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from paperlab_core.config import ModelSpec, RetrySettings, RunConfig
-from paperlab_core.data import ColumnMapping, Dataset
-from paperlab_core.errors import ConfigError, DataError
-from paperlab_core.results import RunResults
-from paperlab_core.runner import Progress, arun, run
-from paperlab_core.runner.ratelimit import RateLimiter, backoff_delay, default_rpm
+from paperlab_space.config import ModelSpec, RetrySettings, RunConfig
+from paperlab_space.data import ColumnMapping, Dataset
+from paperlab_space.errors import ConfigError, DataError
+from paperlab_space.results import RunResults
+from paperlab_space.runner import Progress, arun, run
+from paperlab_space.runner.ratelimit import RateLimiter, backoff_delay, default_rpm
 
 from .fakes import FakeBackend, FakeClock, ProviderError, RetryableError
 

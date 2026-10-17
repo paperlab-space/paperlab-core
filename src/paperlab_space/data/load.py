@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING, Any
 
 from charset_normalizer import from_bytes
 
-from paperlab_core.errors import DataError
+from paperlab_space.errors import DataError
 
 if TYPE_CHECKING:
-    from paperlab_core.data.mapping import ColumnMapping, MappedDataset
+    from paperlab_space.data.mapping import ColumnMapping, MappedDataset
 
 EXCEL_SUFFIXES = {".xlsx", ".xlsm"}
 CSV_SUFFIXES = {".csv", ".tsv", ".txt"}
@@ -55,7 +55,7 @@ class Dataset:
 
     def map(self, mapping: ColumnMapping) -> MappedDataset:
         """Apply a column mapping, producing records ready for prompting and scoring."""
-        from paperlab_core.data.mapping import MappedDataset
+        from paperlab_space.data.mapping import MappedDataset
 
         return MappedDataset.from_dataset(self, mapping)
 

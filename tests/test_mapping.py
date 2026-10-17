@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from paperlab_core.data import ColumnMapping, Dataset, load_dataset
-from paperlab_core.errors import DataError
+from paperlab_space.data import ColumnMapping, Dataset, load_dataset
+from paperlab_space.errors import DataError
 
 
 def test_map_and_jsonl(multilingual_xlsx: Path, tmp_path: Path) -> None:

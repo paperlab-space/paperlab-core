@@ -6,9 +6,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from paperlab_core._cli import app
-from paperlab_core.config import ModelSpec
-from paperlab_core.runner import runner as runner_module
+from paperlab_space._cli import app
+from paperlab_space.config import ModelSpec
+from paperlab_space.runner import runner as runner_module
 
 from .fakes import FakeBackend, ProviderError
 
@@ -81,4 +81,4 @@ def test_metrics_and_version() -> None:
     result = cli.invoke(app, ["metrics"])
     assert result.exit_code == 0 and "token_f1" in result.output
     result = cli.invoke(app, ["--version"])
-    assert result.exit_code == 0 and "paperlab-core" in result.output
+    assert result.exit_code == 0 and "paperlab-space" in result.output

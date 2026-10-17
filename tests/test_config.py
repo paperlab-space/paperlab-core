@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from paperlab_core.config import RunConfig
-from paperlab_core.errors import ConfigError
+from paperlab_space.config import RunConfig
+from paperlab_space.errors import ConfigError
 
 YAML = """
 dataset:
@@ -48,7 +48,7 @@ def test_yaml_roundtrip(tmp_path: Path) -> None:
 def test_repro_file_is_accepted() -> None:
     config = RunConfig.from_dict(
         {
-            "paperlab_core": "0.1.0",
+            "paperlab_space": "0.1.0",
             "config": {
                 "mapping": {"input": "q"},
                 "prompt": "{q}",

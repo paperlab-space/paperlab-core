@@ -1,5 +1,5 @@
 [project]
-name = "paperlab-core"
+name = "paperlab-space"
 dynamic = ["version"]
 description = "Open-source engine for evaluating LLMs on spreadsheet data and producing paper-ready results."
 readme = "README.md"
@@ -26,7 +26,7 @@ dependencies = [
 cli = ["typer>=0.12"]
 
 [project.scripts]
-paperlab = "paperlab_core.cli:main"
+paperlab-space = "paperlab_space.cli:main"
 
 [project.urls]
 Homepage = "https://paperlab.space"
@@ -48,7 +48,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/paperlab_core/__init__.py"
+path = "src/paperlab_space/__init__.py"
 
 [tool.ruff]
 line-length = 100

@@ -7,7 +7,7 @@ import random
 import time
 from collections.abc import Awaitable, Callable
 
-from paperlab_core.config import ModelSpec, RetrySettings
+from paperlab_space.config import ModelSpec, RetrySettings
 
 Sleep = Callable[[float], Awaitable[None]]
 Clock = Callable[[], float]

@@ -9,10 +9,10 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
-from paperlab_core.config import ModelSpec, RunConfig
-from paperlab_core.data.load import Dataset
-from paperlab_core.data.mapping import MappedDataset
-from paperlab_core.errors import DataError
+from paperlab_space.config import ModelSpec, RunConfig
+from paperlab_space.data.load import Dataset
+from paperlab_space.data.mapping import MappedDataset
+from paperlab_space.errors import DataError
 
 FORMAT_VERSION = 1
 
@@ -171,7 +171,7 @@ class RunResults:
 
 def environment_info() -> dict[str, str]:
     info = {"python": platform.python_version()}
-    for package in ("paperlab-core", "litellm"):
+    for package in ("paperlab-space", "litellm"):
         try:
             info[package] = metadata.version(package)
         except metadata.PackageNotFoundError:

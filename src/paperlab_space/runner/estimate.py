@@ -6,11 +6,11 @@ import math
 import unicodedata
 from dataclasses import dataclass, field
 
-from paperlab_core.config import RunConfig
-from paperlab_core.data.load import Dataset
-from paperlab_core.data.mapping import MappedDataset
-from paperlab_core.runner.backend import Backend, is_reasoning_model, lookup_price
-from paperlab_core.runner.ratelimit import default_rpm
+from paperlab_space.config import RunConfig
+from paperlab_space.data.load import Dataset
+from paperlab_space.data.mapping import MappedDataset
+from paperlab_space.runner.backend import Backend, is_reasoning_model, lookup_price
+from paperlab_space.runner.ratelimit import default_rpm
 
 # Daily caps worth warning about. OpenRouter limits ``:free`` models per day per account
 # (lower for accounts that have never bought credits).

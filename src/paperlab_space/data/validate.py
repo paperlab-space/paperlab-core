@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from paperlab_core.data.mapping import MappedDataset
+    from paperlab_space.data.mapping import MappedDataset
 
 Level = Literal["error", "warning"]
 

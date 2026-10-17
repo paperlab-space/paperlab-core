@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from paperlab_core.export.excel import write_excel
-from paperlab_core.export.latex import latex_table, write_latex
-from paperlab_core.export.repro import reproducibility, write_repro
-from paperlab_core.results import RunResults
+from paperlab_space.export.excel import write_excel
+from paperlab_space.export.latex import latex_table, write_latex
+from paperlab_space.export.repro import reproducibility, write_repro
+from paperlab_space.results import RunResults
 
 
 def write_all(results: RunResults, out_dir: str | Path) -> dict[str, Path]:

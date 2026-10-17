@@ -6,8 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from paperlab_core.config import ModelSpec
-from paperlab_core.errors import PaperLabError
+from paperlab_space.config import ModelSpec
+from paperlab_space.errors import PaperLabError
 
 Messages = list[dict[str, str]]
 

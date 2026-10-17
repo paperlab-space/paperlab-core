@@ -1,6 +1,6 @@
-# paperlab-core plan
+# PaperLab.space core plan
 
-`paperlab-core` is the open-source evaluation engine behind [PaperLab.space](https://paperlab.space). It takes a spreadsheet, runs one or more LLMs over it, scores the outputs, and writes paper-ready results. It is a plain Python library (plus a small CLI) and is published to PyPI.
+This repo (`paperlab-core`) holds the open-source evaluation engine behind [PaperLab.space](https://paperlab.space). It takes a spreadsheet, runs one or more LLMs over it, scores the outputs, and writes paper-ready results. It is a plain Python library plus a small CLI, published to PyPI as `paperlab-space` (`import paperlab_space`, command `paperlab-space`). The bare name `paperlab` belongs to an unrelated PyPI project, so the package name carries the `.space` brand, as the PRD intends.
 
 ## Scope and boundary
 
@@ -22,16 +22,16 @@ The platform calls core through its public API only. If the platform needs a hoo
 - Python ≥ 3.10, `src/` layout, built with hatchling, managed with `uv`
 - `openpyxl` + the standard `csv` module for input (no pandas: lighter installs and full control over cell-to-text conversion), `charset-normalizer` for legacy CSV encodings
 - `pydantic` v2 for config models (serialisable, validated, clear error messages)
-- `litellm` for one interface to every provider, imported lazily so `import paperlab_core` stays fast
+- `litellm` for one interface to every provider, imported lazily so `import paperlab_space` stays fast
 - `asyncio` runner with an even-spacing rate limiter per model
 - Own `{column}` placeholder syntax (column names may contain spaces; `{{`/`}}` for literal braces)
 - `ruff` for lint/format, `pytest` for tests, `mypy --strict` for types
-- `typer` for the CLI (optional extra: `pip install 'paperlab-core[cli]'`)
+- `typer` for the CLI (optional extra: `pip install 'paperlab-space[cli]'`)
 
 ## Package layout
 
 ```
-src/paperlab_core/
+src/paperlab_space/
   data/        load.py (Excel/CSV -> Dataset), mapping.py (ColumnMapping, JSONL), validate.py
   prompt.py    PromptTemplate
   config.py    RunConfig, ModelSpec, MetricSpec (the single object describing a run)
@@ -47,7 +47,7 @@ Central object: **`RunConfig`**, which holds data source, column mapping, prompt
 ## Public API
 
 ```python
-from paperlab_core import ColumnMapping, RunConfig, estimate, export, load_dataset, run
+from paperlab_space import ColumnMapping, RunConfig, estimate, export, load_dataset, run
 
 data = load_dataset("data.xlsx", sheet="test")
 mapping = ColumnMapping(input="sentence", expected="gold", id="row_id")
@@ -102,7 +102,7 @@ The platform plugs in through: `LiteLLMBackend(api_keys=...)` (keys never enter 
 - Full results JSON for resuming and sharing
 
 ### M5: CLI + first release (in progress)
-- ✅ `paperlab init | validate | estimate | run [--resume] | metrics`
+- ✅ `paperlab-space init | validate | estimate | run [--resume] | metrics`
 - ✅ `CITATION.cff`, release workflow (PyPI trusted publishing)
 - ⬜ Configure the PyPI trusted publisher, then publish `0.1.0`
 - ⬜ Docs site (mkdocs-material)

@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 
-from paperlab_core.config import ModelSpec
-from paperlab_core.runner.backend import Completion, Messages, ProviderError, RetryableError
+from paperlab_space.config import ModelSpec
+from paperlab_space.runner.backend import Completion, Messages, ProviderError, RetryableError
 
 
 class FakeClock:

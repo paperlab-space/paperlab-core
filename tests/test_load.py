@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from paperlab_core.data import Dataset, list_sheets, load_dataset
-from paperlab_core.errors import DataError
+from paperlab_space.data import Dataset, list_sheets, load_dataset
+from paperlab_space.errors import DataError
 
 from .conftest import MULTILINGUAL
 

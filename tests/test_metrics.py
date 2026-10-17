@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from paperlab_core.config import MetricSpec, RunConfig
-from paperlab_core.data import ColumnMapping, Dataset
-from paperlab_core.errors import ConfigError
-from paperlab_core.metrics import (
+from paperlab_space.config import MetricSpec, RunConfig
+from paperlab_space.data import ColumnMapping, Dataset
+from paperlab_space.errors import ConfigError
+from paperlab_space.metrics import (
     Normalizer,
     available_metrics,
     check_metrics,
@@ -13,7 +13,7 @@ from paperlab_core.metrics import (
     get_metric,
     tokenize,
 )
-from paperlab_core.runner import run
+from paperlab_space.runner import run
 
 from .fakes import FakeBackend
 

@@ -1,8 +1,8 @@
 """Loading, mapping, and validating evaluation data."""
 
-from paperlab_core.data.load import Dataset, list_sheets, load_dataset
-from paperlab_core.data.mapping import ColumnMapping, MappedDataset, Record
-from paperlab_core.data.validate import Issue, ValidationReport, validate
+from paperlab_space.data.load import Dataset, list_sheets, load_dataset
+from paperlab_space.data.mapping import ColumnMapping, MappedDataset, Record
+from paperlab_space.data.validate import Issue, ValidationReport, validate
 
 __all__ = [
     "ColumnMapping",

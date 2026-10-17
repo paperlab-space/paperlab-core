@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from paperlab_core.errors import TemplateError
-from paperlab_core.prompt import PromptTemplate
+from paperlab_space.errors import TemplateError
+from paperlab_space.prompt import PromptTemplate
 
 
 def test_render_with_system_and_spaces() -> None:

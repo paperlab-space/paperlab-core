@@ -1733,7 +1733,7 @@ wheels = [
 ]
 
 [[package]]
-name = "paperlab-core"
+name = "paperlab-space"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },

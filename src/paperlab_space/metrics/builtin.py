@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections import Counter
 from typing import Literal
 
-from paperlab_core.metrics.base import Metric, Predictions, References, register
-from paperlab_core.metrics.normalize import Normalizer, extract_label, tokenize
-from paperlab_core.results import MetricResult
+from paperlab_space.metrics.base import Metric, Predictions, References, register
+from paperlab_space.metrics.normalize import Normalizer, extract_label, tokenize
+from paperlab_space.results import MetricResult
 
 Average = Literal["macro", "micro", "weighted"]
 

@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use paperlab-core in your research, please cite it as below."
-title: "paperlab-core: no-code LLM evaluation on spreadsheet data"
+message: "If you use paperlab-space in your research, please cite it as below."
+title: "paperlab-space: no-code LLM evaluation on spreadsheet data"
 type: software
 authors:
   - name: "PaperLab.space contributors"

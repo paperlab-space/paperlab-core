@@ -1,4 +1,4 @@
-"""The ``paperlab`` command (requires the ``cli`` extra: ``pip install 'paperlab-core[cli]'``)."""
+"""The ``paperlab-space`` command (needs the extra: ``pip install 'paperlab-space[cli]'``)."""
 
 from __future__ import annotations
 
@@ -11,15 +11,15 @@ from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from paperlab_core import __version__
-from paperlab_core.config import RunConfig
-from paperlab_core.data import ColumnMapping, list_sheets, load_dataset
-from paperlab_core.errors import PaperLabError
-from paperlab_core.export import write_all
-from paperlab_core.metrics import available_metrics
-from paperlab_core.results import RunResults
-from paperlab_core.runner import Progress as RunProgress
-from paperlab_core.runner import estimate, prepare_data, run
+from paperlab_space import __version__
+from paperlab_space.config import RunConfig
+from paperlab_space.data import ColumnMapping, list_sheets, load_dataset
+from paperlab_space.errors import PaperLabError
+from paperlab_space.export import write_all
+from paperlab_space.metrics import available_metrics
+from paperlab_space.results import RunResults
+from paperlab_space.runner import Progress as RunProgress
+from paperlab_space.runner import estimate, prepare_data, run
 
 app = typer.Typer(
     help="Evaluate LLMs on spreadsheet data and get paper-ready results.",
@@ -44,7 +44,7 @@ def _main(
     version: Annotated[bool, typer.Option("--version", help="Show the version and exit.")] = False,
 ) -> None:
     if version:
-        console.print(f"paperlab-core {__version__}")
+        console.print(f"paperlab-space {__version__}")
         raise typer.Exit()
 
 
@@ -89,8 +89,8 @@ def init(
         f"# PaperLab run config for {data.name}\n"
         f"# Columns: {', '.join(columns)}\n"
         "# Edit the mapping, prompt, models, and metrics, then run:\n"
-        f"#   paperlab estimate {output.name}\n"
-        f"#   paperlab run {output.name}\n"
+        f"#   paperlab-space estimate {output.name}\n"
+        f"#   paperlab-space run {output.name}\n"
         f"# Metrics: {', '.join(sorted(available_metrics()))}\n"
         "# API keys are read from OPENROUTER_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, ...\n"
     )

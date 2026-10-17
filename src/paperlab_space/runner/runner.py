@@ -9,13 +9,13 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from paperlab_core.config import ModelSpec, RunConfig
-from paperlab_core.data.load import Dataset, load_dataset
-from paperlab_core.data.mapping import MappedDataset
-from paperlab_core.errors import ConfigError, DataError
-from paperlab_core.results import ModelRun, RowOutput, RunResults
-from paperlab_core.runner.backend import Backend, LiteLLMBackend, ProviderError, RetryableError
-from paperlab_core.runner.ratelimit import Clock, RateLimiter, Sleep, backoff_delay, default_rpm
+from paperlab_space.config import ModelSpec, RunConfig
+from paperlab_space.data.load import Dataset, load_dataset
+from paperlab_space.data.mapping import MappedDataset
+from paperlab_space.errors import ConfigError, DataError
+from paperlab_space.results import ModelRun, RowOutput, RunResults
+from paperlab_space.runner.backend import Backend, LiteLLMBackend, ProviderError, RetryableError
+from paperlab_space.runner.ratelimit import Clock, RateLimiter, Sleep, backoff_delay, default_rpm
 
 
 @dataclass
@@ -78,7 +78,7 @@ async def arun(
     """
     mapped = prepare_data(config, data)
     if config.metrics:
-        from paperlab_core.metrics import check_metrics
+        from paperlab_space.metrics import check_metrics
 
         check_metrics(config, mapped)  # fail before spending any API calls
     backend = backend or LiteLLMBackend()
@@ -93,7 +93,7 @@ async def arun(
         config=config, data=mapped, runs={r.name: r for r in model_runs}, started_at=started
     )
     if config.metrics:
-        from paperlab_core.metrics import score
+        from paperlab_space.metrics import score
 
         results.scores = score(results)
     results.finished_at = _now()

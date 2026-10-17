@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from paperlab_core.config import RunConfig
-from paperlab_core.data.mapping import MappedDataset
-from paperlab_core.errors import ConfigError
-from paperlab_core.metrics import builtin as _builtin  # noqa: F401  (registers metrics)
-from paperlab_core.metrics.base import (
+from paperlab_space.config import RunConfig
+from paperlab_space.data.mapping import MappedDataset
+from paperlab_space.errors import ConfigError
+from paperlab_space.metrics import builtin as _builtin  # noqa: F401  (registers metrics)
+from paperlab_space.metrics.base import (
     Metric,
     Predictions,
     References,
@@ -14,8 +14,8 @@ from paperlab_core.metrics.base import (
     get_metric,
     register,
 )
-from paperlab_core.metrics.normalize import Normalizer, extract_label, tokenize
-from paperlab_core.results import MetricResult, RunResults
+from paperlab_space.metrics.normalize import Normalizer, extract_label, tokenize
+from paperlab_space.results import MetricResult, RunResults
 
 
 def check_metrics(config: RunConfig, data: MappedDataset) -> list[Metric]:

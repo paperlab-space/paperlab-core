@@ -13,8 +13,8 @@ from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
-from paperlab_core.export.repro import reproducibility
-from paperlab_core.results import RunResults
+from paperlab_space.export.repro import reproducibility
+from paperlab_space.results import RunResults
 
 EXCEL_CELL_LIMIT = 32_767
 _BOLD = Font(bold=True)

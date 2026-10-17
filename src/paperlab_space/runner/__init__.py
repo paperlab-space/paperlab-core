@@ -1,14 +1,14 @@
 """Sending prompts to models: rate limiting, retries, estimates."""
 
-from paperlab_core.runner.backend import (
+from paperlab_space.runner.backend import (
     Backend,
     Completion,
     LiteLLMBackend,
     ProviderError,
     RetryableError,
 )
-from paperlab_core.runner.estimate import Estimate, ModelEstimate, estimate
-from paperlab_core.runner.runner import Progress, arun, prepare_data, run
+from paperlab_space.runner.estimate import Estimate, ModelEstimate, estimate
+from paperlab_space.runner.runner import Progress, arun, prepare_data, run
 
 __all__ = [
     "Backend",

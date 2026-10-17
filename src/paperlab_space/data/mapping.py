@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from paperlab_core.data.load import Dataset
-from paperlab_core.errors import DataError
+from paperlab_space.data.load import Dataset
+from paperlab_space.errors import DataError
 
 if TYPE_CHECKING:
-    from paperlab_core.data.validate import ValidationReport
+    from paperlab_space.data.validate import ValidationReport
 
 
 class ColumnMapping(BaseModel):
@@ -122,7 +122,7 @@ class MappedDataset:
 
     def validate(self) -> ValidationReport:
         """Check the data for empty cells, duplicate IDs, and encoding problems."""
-        from paperlab_core.data.validate import validate
+        from paperlab_space.data.validate import validate
 
         return validate(self)
 

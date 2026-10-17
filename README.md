@@ -1,8 +1,12 @@
-# paperlab-core
+# PaperLab.space core
+
+```bash
+pip install 'paperlab-space[cli]'
+```
 
 Evaluate LLMs on your own spreadsheet data and get paper-ready results.
 
-Give it an Excel or CSV file, say which columns are inputs and answers, pick models and metrics, and get back an Excel workbook of outputs and scores, a LaTeX table for your paper, and a reproducibility config. `paperlab-core` is the open-source engine behind [PaperLab.space](https://paperlab.space); use it from the command line or from Python.
+Give it an Excel or CSV file, say which columns are inputs and answers, pick models and metrics, and get back an Excel workbook of outputs and scores, a LaTeX table for your paper, and a reproducibility config. `paperlab-space` is the open-source engine behind [PaperLab.space](https://paperlab.space); use it from the command line or from Python.
 
 - **Spreadsheets in:** `.xlsx` (any sheet), `.csv`, `.tsv`, with encoding detection and Unicode-safe handling for non-Latin scripts. Validation catches empty cells, duplicate IDs, and garbled text before you spend API calls.
 - **Any model:** OpenRouter (including free models), Gemini, OpenAI, Anthropic, Ollama, and everything else [LiteLLM](https://docs.litellm.ai/docs/providers) supports, run side by side. You bring your own API keys.
@@ -15,13 +19,13 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 ## Install
 
 ```bash
-pip install 'paperlab-core[cli]'
+pip install 'paperlab-space[cli]'
 ```
 
 Until the first PyPI release, install from GitHub:
 
 ```bash
-pip install 'paperlab-core[cli] @ git+https://github.com/paperlab-space/paperlab-core'
+pip install 'paperlab-space[cli] @ git+https://github.com/paperlab-space/paperlab-core'
 ```
 
 ## Quickstart (command line)
@@ -30,10 +34,10 @@ pip install 'paperlab-core[cli] @ git+https://github.com/paperlab-space/paperlab
 export OPENROUTER_API_KEY=sk-or-...   # free key from https://openrouter.ai
 export GEMINI_API_KEY=...             # free key from https://aistudio.google.com
 
-paperlab init my_data.xlsx            # writes run.yaml, guessing the column roles
-paperlab validate my_data.xlsx -i question -e answer   # check the data, preview JSONL
-paperlab estimate run.yaml            # tokens, cost, and time; no requests sent
-paperlab run run.yaml                 # writes results-run/
+paperlab-space init my_data.xlsx            # writes run.yaml, guessing the column roles
+paperlab-space validate my_data.xlsx -i question -e answer   # check the data, preview JSONL
+paperlab-space estimate run.yaml            # tokens, cost, and time; no requests sent
+paperlab-space run run.yaml                 # writes results-run/
 ```
 
 `run.yaml` looks like this (see [examples/sentiment](examples/sentiment)):
@@ -66,15 +70,15 @@ The output folder contains:
 | --- | --- |
 | `results.xlsx` | Summary sheet (scores, failures, cost), per-row outputs and scores, and the config |
 | `table.tex` | A booktabs table to `\input{}` into your paper |
-| `run.yaml` | The reproducibility config: re-run with `paperlab run run.yaml` |
-| `results.json` | Everything, for `paperlab run run.yaml --resume results.json` after an interruption |
+| `run.yaml` | The reproducibility config: re-run with `paperlab-space run run.yaml` |
+| `results.json` | Everything, for `paperlab-space run run.yaml --resume results.json` after an interruption |
 
-Free models change often; `paperlab run` stops a model early with a clear message if its ID no longer exists. Browse current free models at [openrouter.ai/models](https://openrouter.ai/models?q=free).
+Free models change often; `paperlab-space run` stops a model early with a clear message if its ID no longer exists. Browse current free models at [openrouter.ai/models](https://openrouter.ai/models?q=free).
 
 ## Quickstart (Python)
 
 ```python
-from paperlab_core import ColumnMapping, RunConfig, estimate, export, load_dataset, run
+from paperlab_space import ColumnMapping, RunConfig, estimate, export, load_dataset, run
 
 data = load_dataset("my_data.xlsx", sheet="test")
 config = RunConfig(
@@ -93,7 +97,7 @@ export.write_all(results, "results/")
 
 ## Metrics
 
-Run `paperlab metrics` for the list. Every metric takes normalisation options in the config:
+Run `paperlab-space metrics` for the list. Every metric takes normalisation options in the config:
 
 ```yaml
 metrics:
@@ -106,11 +110,11 @@ metrics:
     average: macro                      # macro | micro | weighted
 ```
 
-Custom metrics subclass `paperlab_core.metrics.Metric` and use the `@register` decorator.
+Custom metrics subclass `paperlab_space.metrics.Metric` and use the `@register` decorator.
 
 ## Citing
 
-If paperlab-core helps your research, please cite it. See [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
+If paperlab-space helps your research, please cite it. See [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
 
 ## Development
 

@@ -1,8 +1,8 @@
-"""Exceptions raised by paperlab-core."""
+"""Exceptions raised by paperlab-space."""
 
 
 class PaperLabError(Exception):
-    """Base class for all paperlab-core errors."""
+    """Base class for all paperlab-space errors."""
 
 
 class DataError(PaperLabError):

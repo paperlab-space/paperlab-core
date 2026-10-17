@@ -12,9 +12,9 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from paperlab_core.data.mapping import ColumnMapping
-from paperlab_core.errors import ConfigError
-from paperlab_core.prompt import PromptTemplate
+from paperlab_space.data.mapping import ColumnMapping
+from paperlab_space.errors import ConfigError
+from paperlab_space.prompt import PromptTemplate
 
 
 class _Strict(BaseModel):
@@ -153,7 +153,7 @@ class RunConfig(_Strict):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RunConfig:
         """Build from a dict; also accepts a reproducibility file (config under ``config``)."""
-        if "config" in data and "paperlab_core" in data:
+        if "config" in data and "paperlab_space" in data:
             data = data["config"]
         try:
             return cls.model_validate(data)

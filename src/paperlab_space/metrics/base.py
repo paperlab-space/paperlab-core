@@ -6,9 +6,9 @@ import inspect
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
-from paperlab_core.config import MetricSpec
-from paperlab_core.errors import ConfigError
-from paperlab_core.results import MetricResult
+from paperlab_space.config import MetricSpec
+from paperlab_space.errors import ConfigError
+from paperlab_space.results import MetricResult
 
 Predictions = list[str | None]
 """Model outputs; ``None`` marks a failed request."""

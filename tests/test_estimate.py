@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from paperlab_core.config import RunConfig
-from paperlab_core.data import Dataset
-from paperlab_core.runner import estimate
-from paperlab_core.runner.estimate import approx_tokens
+from paperlab_space.config import RunConfig
+from paperlab_space.data import Dataset
+from paperlab_space.runner import estimate
+from paperlab_space.runner.estimate import approx_tokens
 
 from .fakes import FakeBackend
 

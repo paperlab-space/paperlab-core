@@ -1,7 +1,7 @@
 # Multilingual sentiment classification with two free models.
 #   export OPENROUTER_API_KEY=...  GEMINI_API_KEY=...
-#   paperlab estimate run.yaml
-#   paperlab run run.yaml
+#   paperlab-space estimate run.yaml
+#   paperlab-space run run.yaml
 dataset:
   path: data.csv
 mapping:

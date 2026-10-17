@@ -5,11 +5,11 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from paperlab_core.config import RunConfig
-from paperlab_core.export import latex_table, write_all
-from paperlab_core.export.latex import escape
-from paperlab_core.results import RunResults
-from paperlab_core.runner import run
+from paperlab_space.config import RunConfig
+from paperlab_space.export import latex_table, write_all
+from paperlab_space.export.latex import escape
+from paperlab_space.results import RunResults
+from paperlab_space.runner import run
 
 from .fakes import FakeBackend, ProviderError
 
