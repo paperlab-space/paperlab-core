@@ -15,6 +15,7 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 - **Paper-ready output:** Excel, a booktabs LaTeX table, and a YAML config recording model versions, prompt, seed, metric settings, and a hash of your data.
 
 [![PyPI](https://img.shields.io/pypi/v/paperlab-space)](https://pypi.org/project/paperlab-space/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23436738.svg)](https://doi.org/10.5281/zenodo.23436738)
 
 > **Status:** early release (0.1). See [PLAN.md](PLAN.md) for the roadmap: BLEU/chrF/ROUGE, LLM-as-judge, and significance tests are next.
 
@@ -112,7 +113,19 @@ Custom metrics subclass `paperlab_space.metrics.Metric` and use the `@register` 
 
 ## Citing
 
-If paperlab-space helps your research, please cite it. See [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
+If paperlab-space helps your research, please cite it:
+
+```bibtex
+@software{paperlab_space,
+  author    = {{Kaung Nay Lin Khant}},
+  title     = {paperlab-space: no-code LLM evaluation on spreadsheet data},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.23436738},
+  url       = {https://doi.org/10.5281/zenodo.23436738}
+}
+```
+
+This DOI always points to the latest version. To cite the exact version you used (recommended for reproducibility), pick it from the [Zenodo record](https://doi.org/10.5281/zenodo.23436738); the version is also recorded in your `run.yaml`. GitHub's "Cite this repository" button gives the same information from [CITATION.cff](CITATION.cff).
 
 ## Development
 

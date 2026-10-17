@@ -14,6 +14,8 @@ authors:
   # Full name kept as one string (Burmese names have no family-name part).
   - family-names: "Kaung Nay Lin Khant"
     orcid: "https://orcid.org/0009-0005-5612-5755"
+# Concept DOI: always resolves to the latest version. Each release also gets its own DOI on Zenodo.
+doi: 10.5281/zenodo.23436738
 repository-code: "https://github.com/paperlab-space/paperlab-core"
 url: "https://paperlab.space"
 license: Apache-2.0
