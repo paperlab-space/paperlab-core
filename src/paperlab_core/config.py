@@ -68,6 +68,8 @@ class MetricSpec(_Strict):
     """A metric name plus its options, e.g. ``{"name": "exact_match", "ignore_case": false}``."""
 
     name: str
+    label: str | None = None
+    """Column name in outputs; needed to use the same metric twice with different options."""
     params: dict[str, Any] = {}
 
     @model_validator(mode="before")
@@ -77,11 +79,16 @@ class MetricSpec(_Strict):
             return {"name": value}
         if isinstance(value, dict) and "name" in value and "params" not in value:
             # Allow the flat form ``{name: f1, average: macro}``.
+            keys = {"name", "label"}
             return {
-                "name": value["name"],
-                "params": {k: v for k, v in value.items() if k != "name"},
+                **{k: v for k, v in value.items() if k in keys},
+                "params": {k: v for k, v in value.items() if k not in keys},
             }
         return value
+
+    @property
+    def key(self) -> str:
+        return self.label or self.name
 
 
 class DatasetSpec(_Strict):
@@ -124,6 +131,13 @@ class RunConfig(_Strict):
             raise ValueError(
                 f"Models must have distinct labels; duplicated: {', '.join(dupes)}. "
                 "Set `label` to tell them apart (e.g. the same model at two temperatures)."
+            )
+        keys = [m.key for m in self.metrics]
+        dupes = sorted({k for k in keys if keys.count(k) > 1})
+        if dupes:
+            raise ValueError(
+                f"Metrics must have distinct labels; duplicated: {', '.join(dupes)}. "
+                "Set `label` to use the same metric with different options."
             )
         try:
             self.prompt.check(self.mapping.fields)

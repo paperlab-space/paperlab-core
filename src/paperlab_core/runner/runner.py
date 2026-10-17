@@ -77,6 +77,10 @@ async def arun(
         sleep, clock: Injection points for tests.
     """
     mapped = prepare_data(config, data)
+    if config.metrics:
+        from paperlab_core.metrics import check_metrics
+
+        check_metrics(config, mapped)  # fail before spending any API calls
     backend = backend or LiteLLMBackend()
     started = _now()
     model_runs = await asyncio.gather(
