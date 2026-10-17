@@ -112,6 +112,11 @@ def test_errors(tmp_path: Path) -> None:
     (tmp_path / "old.xls").write_bytes(b"x")
     with pytest.raises(DataError, match="re-save"):
         load_dataset(tmp_path / "old.xls")
+    (tmp_path / "broken.xlsx").write_bytes(b"not a zip file")
+    with pytest.raises(DataError, match="Could not open"):
+        list_sheets(tmp_path / "broken.xlsx")
+    with pytest.raises(DataError, match="Could not open"):
+        load_dataset(tmp_path / "broken.xlsx")
     (tmp_path / "empty.csv").write_text("", encoding="utf-8")
     with pytest.raises(DataError, match="empty"):
         load_dataset(tmp_path / "empty.csv")

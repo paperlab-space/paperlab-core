@@ -87,7 +87,10 @@ def list_sheets(path: str | Path) -> list[str]:
     _check_excel(path)
     from openpyxl import load_workbook
 
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=True)
+    except Exception as exc:  # openpyxl raises several unrelated exception types
+        raise DataError(f"Could not open Excel file {path.name}: {exc}") from exc
     try:
         return list(workbook.sheetnames)
     finally:
