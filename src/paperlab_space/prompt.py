@@ -25,7 +25,9 @@ class PromptTemplate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     user: str
+    """The user message, with ``{column}`` placeholders."""
     system: str | None = None
+    """An optional system message, with the same placeholders."""
 
     @model_validator(mode="before")
     @classmethod

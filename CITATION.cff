@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use paperlab-space in your research, please cite it as below."
-title: "paperlab-space: no-code LLM evaluation on spreadsheet data"
+title: "paperlab-space: LLM evaluation on spreadsheet data"
 abstract: >-
   paperlab-space is the open-source engine behind PaperLab.space. It evaluates large
   language models on researchers' own Excel or CSV data and produces paper-ready

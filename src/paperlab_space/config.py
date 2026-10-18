@@ -25,12 +25,17 @@ class ModelSpec(_Strict):
     """A model to evaluate, addressed by its LiteLLM ID (``provider/model``)."""
 
     id: str
+    """LiteLLM model ID with its provider prefix, e.g. ``gemini/gemini-3.5-flash``."""
     label: str | None = None
     """Display name in tables. Defaults to the model ID without the provider prefix."""
     temperature: float = Field(0.0, ge=0)
+    """Sampling temperature. 0 gives the most repeatable outputs."""
     max_tokens: int | None = Field(None, gt=0)
+    """Cap on output tokens per response."""
     top_p: float | None = Field(None, gt=0, le=1)
+    """Nucleus sampling cutoff."""
     seed: int | None = None
+    """Overrides the run-level ``seed`` for this model."""
     requests_per_minute: float | None = Field(None, gt=0)
     """Override the default rate limit for this model."""
     concurrency: int | None = Field(None, gt=0)
@@ -68,9 +73,12 @@ class MetricSpec(_Strict):
     """A metric name plus its options, e.g. ``{"name": "exact_match", "ignore_case": false}``."""
 
     name: str
+    """A registered metric name; ``paperlab-space metrics`` lists them."""
     label: str | None = None
     """Column name in outputs; needed to use the same metric twice with different options."""
     params: dict[str, Any] = {}
+    """Metric options such as ``labels`` or ``ignore_case``. In YAML they can also sit next to
+    ``name``."""
 
     @model_validator(mode="before")
     @classmethod
@@ -95,14 +103,20 @@ class DatasetSpec(_Strict):
     """Where the data comes from. Optional when the dataset is passed in directly."""
 
     path: str
+    """Data file. A relative path is resolved against the config file's folder."""
     sheet: str | int | None = None
+    """Excel sheet name or zero-based index. Defaults to the first sheet."""
 
 
 class RetrySettings(_Strict):
+    """How failed requests are retried, and how long to wait for a response."""
+
     max_attempts: int = Field(5, ge=1)
+    """Tries per row, including the first."""
     base_delay: float = Field(2.0, ge=0)
     """Seconds before the first retry; doubles on each attempt."""
     max_delay: float = Field(60.0, ge=0)
+    """Upper bound on the wait between retries, in seconds."""
     timeout: float = Field(120.0, gt=0)
     """Seconds to wait for one model response."""
 
@@ -111,15 +125,21 @@ class RunConfig(_Strict):
     """Everything needed to run (and re-run) an evaluation."""
 
     dataset: DatasetSpec | None = None
+    """Where to load the data from. Optional when the data is passed to ``run`` directly."""
     mapping: ColumnMapping
+    """Which columns are inputs, context, the answer key, and the row ID."""
     prompt: PromptTemplate
+    """The prompt template: a string, or an object with ``user`` and ``system``."""
     models: list[ModelSpec]
+    """Models to evaluate, as IDs or objects with options."""
     metrics: list[MetricSpec] = []
+    """Metrics to compute, as names or objects with options. Empty collects outputs only."""
     seed: int | None = None
     """Default seed for models that do not set their own."""
     concurrency: int = Field(4, gt=0)
     """Parallel requests per model (rate limits still apply)."""
     retry: RetrySettings = RetrySettings()
+    """Retry and timeout settings."""
 
     @model_validator(mode="after")
     def _check(self) -> RunConfig:

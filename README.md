@@ -17,6 +17,8 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 [![PyPI](https://img.shields.io/pypi/v/paperlab-space)](https://pypi.org/project/paperlab-space/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23436738.svg)](https://doi.org/10.5281/zenodo.23436738)
 
+**Documentation:** [paperlab.space/docs](https://paperlab.space/docs) (source in [docs/](docs/)).
+
 > **Status:** early release (0.1). See [PLAN.md](PLAN.md) for the roadmap: BLEU/chrF/ROUGE, LLM-as-judge, and significance tests are next.
 
 ## Install
@@ -118,7 +120,7 @@ If paperlab-space helps your research, please cite it:
 ```bibtex
 @software{paperlab_space,
   author    = {{Kaung Nay Lin Khant}},
-  title     = {paperlab-space: no-code LLM evaluation on spreadsheet data},
+  title     = {paperlab-space: LLM evaluation on spreadsheet data},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.23436738},
   url       = {https://doi.org/10.5281/zenodo.23436738}

@@ -26,9 +26,13 @@ class ColumnMapping(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     input: list[str]
+    """Columns available to the prompt template. One name or a list."""
     context: list[str] = []
+    """More columns available to the prompt, such as metadata."""
     expected: str | None = None
+    """The answer key that outputs are scored against. Never available to the prompt."""
     id: str | None = None
+    """A stable row ID. Defaults to the 1-based row number."""
     answer_delimiter: str | None = None
     """Split the expected cell on this string to allow several valid answers, e.g. ``"|"``."""
 
@@ -70,8 +74,11 @@ class Record:
     """One evaluation example."""
 
     id: str
+    """The row ID, or the row number if the mapping has no ID column."""
     fields: dict[str, str | None]
+    """Input and context values by column name."""
     expected: list[str] | None
+    """Valid answers, or ``None`` without an answer key entry."""
     row_number: int
     """1-based position among the data rows (header excluded)."""
 
@@ -89,6 +96,7 @@ class MappedDataset:
     records: list[Record]
     mapping: ColumnMapping
     dataset: Dataset
+    """The unmapped data."""
 
     @classmethod
     def from_dataset(cls, dataset: Dataset, mapping: ColumnMapping) -> MappedDataset:

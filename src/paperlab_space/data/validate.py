@@ -18,12 +18,17 @@ _INVISIBLE = {"​", "﻿", " "}
 
 @dataclass
 class Issue:
+    """One problem found in the data."""
+
     level: Level
+    """``"error"`` blocks a run; ``"warning"`` does not."""
     code: str
+    """A stable identifier, e.g. ``empty_input`` or ``duplicate_id``."""
     message: str
     rows: list[int] = field(default_factory=list)
     """1-based data row numbers (header excluded)."""
     column: str | None = None
+    """The column the problem is in, if any."""
 
     def __str__(self) -> str:
         where = ""
@@ -35,6 +40,8 @@ class Issue:
 
 @dataclass
 class ValidationReport:
+    """The result of validating mapped data."""
+
     issues: list[Issue]
     n_records: int
 

@@ -24,3 +24,10 @@ jobs:
       - run: uv run pytest
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
+      # Rebuild paperlab.space/docs from main. Optional: set the DOCS_DEPLOY_HOOK secret to a
+      # Vercel deploy hook URL for the platform frontend (needs a Git-connected project).
+      - name: Redeploy the docs site
+        env:
+          DOCS_DEPLOY_HOOK: ${{ secrets.DOCS_DEPLOY_HOOK }}
+        if: env.DOCS_DEPLOY_HOOK != ''
+        run: curl -fsS -X POST "$DOCS_DEPLOY_HOOK"

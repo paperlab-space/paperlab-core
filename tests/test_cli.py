@@ -67,6 +67,29 @@ def test_init_validate_estimate_run_resume(
     assert "failed." not in result.output
 
 
+def test_ctrl_c_saves_finished_rows(
+    multilingual_xlsx: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def stop_on_chinese(model: ModelSpec, prompt: str, attempt: int) -> str:
+        if "你好" in prompt:
+            raise KeyboardInterrupt
+        return "hello"
+
+    monkeypatch.setattr(runner_module, "LiteLLMBackend", lambda: FakeBackend(stop_on_chinese))
+    config = tmp_path / "run.yaml"
+    assert cli.invoke(app, ["init", str(multilingual_xlsx), "-o", str(config)]).exit_code == 0
+    data = yaml.safe_load(config.read_text(encoding="utf-8"))
+    data["models"] = ["openai/a"]
+    data["concurrency"] = 1
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    out = tmp_path / "out"
+    result = cli.invoke(app, ["run", str(config), "-o", str(out), "--yes"])
+    assert result.exit_code == 130, result.output
+    assert "Stopped." in result.output and "--resume" in result.output
+    assert (out / "results.json").exists() and not (out / "results.xlsx").exists()
+
+
 def test_validate_reports_errors(tmp_path: Path) -> None:
     path = tmp_path / "d.csv"
     path.write_text("id,q\n1,a\n1,b\n", encoding="utf-8")

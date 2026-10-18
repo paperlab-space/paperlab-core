@@ -20,9 +20,13 @@ class Metric(ABC):
     """Base class for metrics. Subclasses declare their options as ``__init__`` arguments."""
 
     name: ClassVar[str]
+    """The name used in run configs."""
     description: ClassVar[str] = ""
+    """One sentence, shown by ``paperlab-space metrics``."""
     requires_reference: ClassVar[bool] = True
+    """Whether the metric needs an expected-answer column."""
     higher_is_better: ClassVar[bool] = True
+    """Which way is better, so the LaTeX table bolds the right score."""
 
     @abstractmethod
     def compute(self, predictions: Predictions, references: References) -> MetricResult:

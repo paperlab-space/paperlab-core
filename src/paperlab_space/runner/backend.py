@@ -16,10 +16,16 @@ Messages = list[dict[str, str]]
 
 @dataclass
 class Completion:
+    """One model response, as a backend returns it."""
+
     text: str
+    """The model's answer."""
     input_tokens: int | None = None
+    """Prompt tokens, as reported by the provider."""
     output_tokens: int | None = None
+    """Output tokens, as reported by the provider."""
     cost_usd: float | None = None
+    """Cost in USD, if known."""
     model_version: str | None = None
     """The exact model name reported by the provider, if any."""
 

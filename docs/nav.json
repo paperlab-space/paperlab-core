@@ -1,0 +1,33 @@
+{
+  "sections": [
+    {
+      "title": "Start",
+      "pages": ["index.md", "quickstart-cli.md", "quickstart-python.md"]
+    },
+    {
+      "title": "Guides",
+      "pages": [
+        "guides/data.md",
+        "guides/prompts.md",
+        "guides/models.md",
+        "guides/metrics.md",
+        "guides/outputs.md",
+        "guides/resuming.md",
+        "guides/reproducibility.md",
+        "guides/non-latin-scripts.md"
+      ]
+    },
+    {
+      "title": "Reference",
+      "pages": ["reference/config.md", "reference/cli.md", "reference/metrics.md", "reference/python.md"]
+    },
+    {
+      "title": "Extend",
+      "pages": ["extend/custom-metrics.md", "extend/custom-backends.md"]
+    },
+    {
+      "title": "Project",
+      "pages": ["changelog.md", "contributing.md"]
+    }
+  ]
+}

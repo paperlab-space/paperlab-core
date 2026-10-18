@@ -20,15 +20,21 @@ FORMAT_VERSION = 1
 @dataclass
 class RowOutput:
     record_id: str
+    """The ID of the data row."""
     output: str | None
     """The model's answer, or ``None`` if every attempt failed."""
     error: str | None = None
+    """Why the request failed, if it did."""
     attempts: int = 0
+    """Requests sent for this row, including retries."""
     latency_s: float | None = None
+    """Seconds the successful request took."""
     input_tokens: int | None = None
     output_tokens: int | None = None
     cost_usd: float | None = None
+    """Cost in USD, if the provider's price is known."""
     model_version: str | None = None
+    """The exact model name the provider reported."""
 
     @property
     def ok(self) -> bool:
@@ -37,8 +43,11 @@ class RowOutput:
 
 @dataclass
 class ModelRun:
+    """One model's outputs for every row."""
+
     model: ModelSpec
     rows: list[RowOutput]
+    """One output per data row, in data order."""
 
     @property
     def name(self) -> str:
@@ -71,6 +80,7 @@ class MetricResult:
     """The score of one metric for one model."""
 
     name: str
+    """The metric's key: its label, or its name."""
     value: float | None
     """The headline number (``None`` if no row could be scored)."""
     per_row: list[float | None] | None = None
@@ -78,20 +88,27 @@ class MetricResult:
     extra: dict[str, float] = field(default_factory=dict)
     """Secondary numbers, e.g. precision and recall next to F1."""
     n_scored: int = 0
+    """Rows that counted towards the score."""
     higher_is_better: bool = True
 
 
 @dataclass
 class RunResults:
+    """Everything a run produced: outputs, scores, and the config and data behind them."""
+
     config: RunConfig
     data: MappedDataset
+    """The data the run used, with the mapping applied."""
     runs: dict[str, ModelRun]
     """Model name -> outputs, in config order."""
     scores: dict[str, dict[str, MetricResult]] = field(default_factory=dict)
     """Model name -> metric name -> result."""
     started_at: str | None = None
+    """ISO 8601 timestamp (UTC)."""
     finished_at: str | None = None
+    """ISO 8601 timestamp (UTC)."""
     environment: dict[str, str] = field(default_factory=lambda: environment_info())
+    """Python, paperlab-space, and LiteLLM versions."""
 
     @property
     def model_names(self) -> list[str]:

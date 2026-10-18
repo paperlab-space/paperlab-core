@@ -187,10 +187,20 @@ def run_cmd(
         def on_progress(p: RunProgress) -> None:
             bar.update(tasks[p.model], completed=p.done, failed=p.failed)
 
+        checkpoint = out / "results.json"
         try:
-            results = run(cfg, data, on_progress=on_progress, previous=previous)
+            results = run(
+                cfg, data, on_progress=on_progress, previous=previous, checkpoint=checkpoint
+            )
         except PaperLabError as exc:
             raise _fail(exc) from exc
+        except KeyboardInterrupt:
+            bar.stop()
+            console.print(
+                f"[yellow]Stopped.[/] Finished rows are saved in {checkpoint}. Continue with:\n"
+                f"  paperlab-space run {config} --resume {checkpoint}"
+            )
+            raise typer.Exit(130) from None
 
     paths = write_all(results, out)
     _print_scores(results)

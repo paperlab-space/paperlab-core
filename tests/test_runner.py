@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ from paperlab_space.config import ModelSpec, RetrySettings, RunConfig
 from paperlab_space.data import ColumnMapping, Dataset
 from paperlab_space.errors import ConfigError, DataError
 from paperlab_space.results import RunResults
-from paperlab_space.runner import Progress, arun, run
+from paperlab_space.runner import Completion, Progress, arun, run
 from paperlab_space.runner.ratelimit import RateLimiter, backoff_delay, default_rpm
 
 from .fakes import FakeBackend, FakeClock, ProviderError, RetryableError
@@ -122,6 +123,71 @@ async def test_resume_reuses_successful_rows(tmp_path: Path) -> None:
     )
     assert backend.calls == [("openai/m", "q3")]
     assert [r.output for r in second.runs["m"].rows] == ["ok", "ok", "new", "ok", "ok"]
+
+
+class HangingBackend(FakeBackend):
+    """Answers every prompt except ``hang``, which never returns."""
+
+    def __init__(self, hang: str) -> None:
+        super().__init__()
+        self.hang = hang
+
+    async def complete(
+        self, model: ModelSpec, messages: list[dict[str, str]], *, seed: int | None, timeout: float
+    ) -> Completion:
+        if messages[-1]["content"] == self.hang:
+            await asyncio.Event().wait()
+        return await super().complete(model, messages, seed=seed, timeout=timeout)
+
+
+async def test_checkpoint_keeps_finished_rows_when_stopped(tmp_path: Path) -> None:
+    path = tmp_path / "out" / "results.json"
+    done: list[Progress] = []
+    task = asyncio.create_task(
+        arun(
+            make_config(models=["openai/m"]),
+            DATA,
+            backend=HangingBackend("q3"),
+            on_progress=done.append,
+            checkpoint=path,
+        )
+    )
+    while len(done) < 4:
+        await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    saved = RunResults.load_json(path)
+    assert sorted(r.record_id for r in saved.runs["m"].rows) == ["r1", "r2", "r4", "r5"]
+    assert not path.with_name("results.json.tmp").exists()
+
+    backend = FakeBackend()
+    resumed = await arun(saved.config, DATA, backend=backend, previous=saved, checkpoint=path)
+    assert backend.calls == [("openai/m", "q3")]
+    assert [r.output for r in resumed.runs["m"].rows] == ["Q1", "Q2", "Q3", "Q4", "Q5"]
+    assert len(RunResults.load_json(path).runs["m"].rows) == 5  # the full results
+
+
+async def test_checkpoint_is_written_during_the_run(tmp_path: Path) -> None:
+    clock = FakeClock()
+    path = tmp_path / "results.json"
+
+    def slow(model: ModelSpec, prompt: str, attempt: int) -> str:
+        clock.now += 10  # each request "takes" 10 s, past the checkpoint interval
+        return "ok"
+
+    existed: list[bool] = []
+    await arun(
+        make_config(models=["openai/m"]),
+        DATA,
+        backend=FakeBackend(slow),
+        on_progress=lambda p: existed.append(path.exists()),
+        checkpoint=path,
+        sleep=clock.sleep,
+        clock=clock,
+    )
+    assert existed[0] and all(existed)
 
 
 async def test_resume_refuses_changed_model() -> None:

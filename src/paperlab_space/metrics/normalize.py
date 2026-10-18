@@ -20,7 +20,9 @@ class Normalizer:
     """
 
     nfkc: bool = True
+    """Apply Unicode NFKC, so full-width characters equal their ASCII forms."""
     ignore_case: bool = True
+    """Compare case-insensitively."""
     trim_punctuation: bool = True
     """Strip punctuation and quotes from the start and end only."""
     ignore_punctuation: bool = False

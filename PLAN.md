@@ -105,7 +105,8 @@ The platform plugs in through: `LiteLLMBackend(api_keys=...)` (keys never enter 
 - ✅ `paperlab-space init | validate | estimate | run [--resume] | metrics`
 - ✅ `CITATION.cff`, release workflow (PyPI trusted publishing)
 - ⬜ Configure the PyPI trusted publisher, then publish `0.1.0`
-- ⬜ Docs site (mkdocs-material)
+- ✅ Docs in `docs/` (Markdown + `nav.json`), published at paperlab.space/docs by the platform frontend
+- ✅ Generated reference (`scripts/build_docs.py`): config file, metrics, and Python API from the source; checked in CI
 
 ### After 0.1 (matches the product roadmap)
 - v1.1: separate answer-key file joined by row ID; BLEU, chrF, ROUGE (`sacrebleu`, `rouge-score`); Ollama and more providers documented and tested; Zawgyi detection for Burmese input
