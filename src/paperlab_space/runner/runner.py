@@ -10,14 +10,24 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from paperlab_space.config import ModelSpec, RunConfig
+from paperlab_space.config import MetricSpec, ModelSpec, RunConfig
 from paperlab_space.data.load import Dataset, load_dataset
-from paperlab_space.data.mapping import MappedDataset
+from paperlab_space.data.mapping import MappedDataset, Record
 from paperlab_space.errors import ConfigError, DataError
 from paperlab_space.results import ModelRun, RowOutput, RunResults
-from paperlab_space.runner.backend import Backend, LiteLLMBackend, ProviderError, RetryableError
+from paperlab_space.runner.backend import (
+    Backend,
+    LiteLLMBackend,
+    Messages,
+    ProviderError,
+    RetryableError,
+)
 from paperlab_space.runner.ratelimit import Clock, RateLimiter, Sleep, backoff_delay, default_rpm
+
+if TYPE_CHECKING:
+    from paperlab_space.metrics.judge import LLMJudge
 
 
 @dataclass
@@ -36,6 +46,9 @@ class Progress:
     """The row that just finished."""
     row: RowOutput | None = None
     """Its output, so callers can checkpoint partial results (see ``previous`` in :func:`arun`)."""
+    metric: str | None = None
+    """For LLM-judge requests, the judge metric's key. ``model`` is then the model whose
+    output was judged, and ``done`` and ``total`` count this metric's judge requests."""
 
 
 ProgressCallback = Callable[[Progress], None]
@@ -52,6 +65,7 @@ def run(
     on_progress: ProgressCallback | None = None,
     previous: RunResults | None = None,
     checkpoint: str | Path | None = None,
+    on_judge_progress: ProgressCallback | None = None,
 ) -> RunResults:
     """Run an evaluation and return outputs and scores.
 
@@ -59,7 +73,16 @@ def run(
     See :func:`arun` for the arguments.
     """
     state = _Checkpoint(checkpoint, config, time.monotonic)
-    coro = _arun(config, data, backend, on_progress, previous, state, asyncio.sleep, time.monotonic)
+    coro = _arun(
+        config,
+        data,
+        backend,
+        _Callbacks(on_progress, on_judge_progress),
+        previous,
+        state,
+        asyncio.sleep,
+        time.monotonic,
+    )
     try:
         try:
             asyncio.get_running_loop()
@@ -82,6 +105,7 @@ async def arun(
     on_progress: ProgressCallback | None = None,
     previous: RunResults | None = None,
     checkpoint: str | Path | None = None,
+    on_judge_progress: ProgressCallback | None = None,
     sleep: Sleep = asyncio.sleep,
     clock: Clock = time.monotonic,
 ) -> RunResults:
@@ -93,22 +117,32 @@ async def arun(
             :class:`Dataset` is mapped with ``config.mapping``.
         backend: Where to send requests. Defaults to :class:`LiteLLMBackend`.
         on_progress: Called after each row finishes.
-        previous: Results of an earlier, interrupted run with the same config. Rows that
-            already have an output are reused instead of requested again.
+        previous: Results of an earlier, interrupted run with the same models. Rows that
+            already have an output are reused instead of requested again, and so are LLM-judge
+            responses for unchanged outputs and judge settings.
         checkpoint: A ``results.json`` path to save finished rows to while the run goes,
             and when it stops early (Ctrl+C, an error). Pass the file as ``previous`` to
             continue. When the run finishes, the full results are written there.
+        on_judge_progress: Called after each LLM-judge request finishes. Judging starts once
+            every model has finished.
         sleep, clock: Injection points for tests.
     """
     state = _Checkpoint(checkpoint, config, clock)
-    return await _arun(config, data, backend, on_progress, previous, state, sleep, clock)
+    callbacks = _Callbacks(on_progress, on_judge_progress)
+    return await _arun(config, data, backend, callbacks, previous, state, sleep, clock)
+
+
+@dataclass
+class _Callbacks:
+    model: ProgressCallback | None
+    judge: ProgressCallback | None
 
 
 async def _arun(
     config: RunConfig,
     data: Dataset | MappedDataset | None,
     backend: Backend | None,
-    on_progress: ProgressCallback | None,
+    callbacks: _Callbacks,
     previous: RunResults | None,
     state: _Checkpoint,
     sleep: Sleep,
@@ -124,8 +158,13 @@ async def _arun(
 
     def track(progress: Progress) -> None:
         state.add(progress)
-        if on_progress is not None:
-            on_progress(progress)
+        if callbacks.model is not None:
+            callbacks.model(progress)
+
+    def track_judge(progress: Progress) -> None:
+        state.add(progress)
+        if callbacks.judge is not None:
+            callbacks.judge(progress)
 
     try:
         model_runs = await asyncio.gather(
@@ -134,18 +173,24 @@ async def _arun(
                 for model in config.models
             )
         )
+        runs = {r.name: r for r in model_runs}
+        judgments = await _judge_all(
+            config, mapped, runs, backend, track_judge, previous, sleep, clock
+        )
     except GeneratorExit:  # the coroutine is being discarded; run() saves instead
         raise
     except BaseException:  # including Ctrl+C and cancellation: keep what is done
         state.save()
         raise
     results = RunResults(
-        config=config, data=mapped, runs={r.name: r for r in model_runs}, started_at=state.started
+        config=config, data=mapped, runs=runs, judgments=judgments, started_at=state.started
     )
     if config.metrics:
         from paperlab_space.metrics import score
+        from paperlab_space.stats import compare
 
         results.scores = score(results)
+        results.comparisons = compare(results)
     results.finished_at = _now()
     state.save(results)
     return results
@@ -159,6 +204,7 @@ class _Checkpoint:
         self.config = config
         self.clock = clock
         self.rows: dict[str, dict[str, RowOutput]] = {m.name: {} for m in config.models}
+        self.judgments: dict[str, dict[str, dict[str, RowOutput]]] = {}
         self.data: MappedDataset | None = None
         self.started: str | None = None
         self.last_save = clock()
@@ -167,7 +213,10 @@ class _Checkpoint:
         self.data, self.started = data, started
 
     def add(self, progress: Progress) -> None:
-        if progress.row is not None:
+        if progress.row is not None and progress.metric is not None:
+            judged = self.judgments.setdefault(progress.metric, {}).setdefault(progress.model, {})
+            judged[progress.record_id] = progress.row
+        elif progress.row is not None:
             self.rows[progress.model][progress.record_id] = progress.row
         if self.path is not None and self.clock() - self.last_save >= CHECKPOINT_INTERVAL_S:
             self.save()
@@ -181,8 +230,16 @@ class _Checkpoint:
             runs = {
                 m.name: ModelRun(m, list(self.rows[m.name].values())) for m in self.config.models
             }
+            judgments = {
+                key: {name: list(rows.values()) for name, rows in models.items()}
+                for key, models in self.judgments.items()
+            }
             results = RunResults(
-                config=self.config, data=self.data, runs=runs, started_at=self.started
+                config=self.config,
+                data=self.data,
+                runs=runs,
+                judgments=judgments,
+                started_at=self.started,
             )
         # Write then rename, so an interruption mid-write never leaves a truncated file.
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,15 +276,6 @@ async def _run_model(
     sleep: Sleep,
     clock: Clock,
 ) -> ModelRun:
-    limiter = RateLimiter(default_rpm(model), clock=clock, sleep=sleep)
-    semaphore = asyncio.Semaphore(model.concurrency or config.concurrency)
-    settings = config.retry
-    seed = config.model_seed(model)
-    total = len(data.records)
-    rows: list[RowOutput | None] = [None] * total
-    fatal: str | None = None
-    done = failed = 0
-
     reusable: dict[str, RowOutput] = {}
     if previous is not None and model.name in previous.runs:
         if previous.runs[model.name].model != model:
@@ -236,26 +284,65 @@ async def _run_model(
             )
         reusable = {row.record_id: row for row in previous.runs[model.name].rows if row.ok}
 
+    total = len(data.records)
+    done = failed = 0
+
     def finish(index: int, row: RowOutput) -> None:
         nonlocal done, failed
-        rows[index] = row
         done += 1
         failed += not row.ok
         if on_progress is not None:
             on_progress(Progress(model.name, done, failed, total, row.record_id, row))
 
+    def request(record: Record) -> Callable[[], Messages]:
+        return lambda: config.prompt.render(record.fields)
+
+    jobs: list[Job] = [(record.id, request(record)) for record in data.records]
+    reuse = {i: reusable[r.id] for i, r in enumerate(data.records) if r.id in reusable}
+    rows = await _run_requests(
+        config, model, config.model_seed(model), jobs, reuse, finish, backend, sleep, clock
+    )
+    return ModelRun(model=model, rows=rows)
+
+
+Job = tuple[str, Callable[[], Messages]]
+"""A record ID and a function returning the messages to send for it."""
+
+
+async def _run_requests(
+    config: RunConfig,
+    model: ModelSpec,
+    seed: int | None,
+    jobs: list[Job],
+    reusable: dict[int, RowOutput],
+    finish: Callable[[int, RowOutput], None],
+    backend: Backend,
+    sleep: Sleep,
+    clock: Clock,
+) -> list[RowOutput]:
+    """Send every job to ``model``, with rate limiting and retries, in job order."""
+    limiter = RateLimiter(default_rpm(model), clock=clock, sleep=sleep)
+    semaphore = asyncio.Semaphore(model.concurrency or config.concurrency)
+    settings = config.retry
+    rows: list[RowOutput | None] = [None] * len(jobs)
+    fatal: str | None = None
+
+    def done(index: int, row: RowOutput) -> None:
+        rows[index] = row
+        finish(index, row)
+
     async def one(index: int) -> None:
         nonlocal fatal
-        record = data.records[index]
-        if record.id in reusable:
-            finish(index, reusable[record.id])
+        record_id, build = jobs[index]
+        if index in reusable:
+            done(index, reusable[index])
             return
-        messages = config.prompt.render(record.fields)
+        messages = build()
         async with semaphore:
             attempts = 0
             while True:
                 if fatal is not None:
-                    finish(index, RowOutput(record.id, None, error=fatal, attempts=attempts))
+                    done(index, RowOutput(record_id, None, error=fatal, attempts=attempts))
                     return
                 attempts += 1
                 await limiter.acquire()
@@ -272,7 +359,7 @@ async def _run_model(
                     retry_after = exc.retry_after if isinstance(exc, RetryableError) else None
                     if attempts >= settings.max_attempts:
                         message = str(exc) or "Timed out"
-                        finish(index, RowOutput(record.id, None, error=message, attempts=attempts))
+                        done(index, RowOutput(record_id, None, error=message, attempts=attempts))
                         return
                     delay = backoff_delay(attempts, settings, retry_after)
                     if retry_after is not None:
@@ -282,20 +369,20 @@ async def _run_model(
                 except ProviderError as exc:
                     if exc.fatal:
                         fatal = str(exc)
-                    finish(index, RowOutput(record.id, None, error=str(exc), attempts=attempts))
+                    done(index, RowOutput(record_id, None, error=str(exc), attempts=attempts))
                     return
                 except Exception as exc:  # a bug in a custom backend should not kill the run
-                    finish(
+                    done(
                         index,
                         RowOutput(
-                            record.id, None, error=f"{type(exc).__name__}: {exc}", attempts=attempts
+                            record_id, None, error=f"{type(exc).__name__}: {exc}", attempts=attempts
                         ),
                     )
                     return
-                finish(
+                done(
                     index,
                     RowOutput(
-                        record_id=record.id,
+                        record_id=record_id,
                         output=completion.text,
                         attempts=attempts,
                         latency_s=round(clock() - start, 3),
@@ -307,8 +394,108 @@ async def _run_model(
                 )
                 return
 
-    await asyncio.gather(*(one(i) for i in range(total)))
-    return ModelRun(model=model, rows=[row for row in rows if row is not None])
+    await asyncio.gather(*(one(i) for i in range(len(jobs))))
+    return [row for row in rows if row is not None]
+
+
+async def _judge_all(
+    config: RunConfig,
+    data: MappedDataset,
+    runs: dict[str, ModelRun],
+    backend: Backend,
+    on_progress: ProgressCallback,
+    previous: RunResults | None,
+    sleep: Sleep,
+    clock: Clock,
+) -> dict[str, dict[str, list[RowOutput]]]:
+    """Run every LLM-judge metric over every model's outputs, one metric at a time."""
+    from paperlab_space.metrics import LLMJudge, get_metric
+
+    judgments: dict[str, dict[str, list[RowOutput]]] = {}
+    for spec in config.metrics:
+        metric = get_metric(spec)
+        if isinstance(metric, LLMJudge):
+            judgments[spec.key] = await _judge(
+                config, spec, metric, data, runs, backend, on_progress, previous, sleep, clock
+            )
+    return judgments
+
+
+async def _judge(
+    config: RunConfig,
+    spec: MetricSpec,
+    metric: LLMJudge,
+    data: MappedDataset,
+    runs: dict[str, ModelRun],
+    backend: Backend,
+    on_progress: ProgressCallback,
+    previous: RunResults | None,
+    sleep: Sleep,
+    clock: Clock,
+) -> dict[str, list[RowOutput]]:
+    from paperlab_space.metrics.judge import NOT_JUDGED
+
+    use_reference = metric.uses_reference(data)
+    earlier = _earlier_judgments(previous, spec)
+    out = {name: [RowOutput(r.id, None, error=NOT_JUDGED) for r in data.records] for name in runs}
+
+    def request(record: Record, output: str) -> Callable[[], Messages]:
+        def build() -> Messages:
+            task = config.prompt.render(record.fields)[-1]["content"]
+            return metric.messages(task, output, record.expected if use_reference else None)
+
+        return build
+
+    jobs: list[Job] = []
+    slots: list[tuple[str, int]] = []
+    reuse: dict[int, RowOutput] = {}
+    for name, model_run in runs.items():
+        for index, (record, row) in enumerate(zip(data.records, model_run.rows, strict=True)):
+            if row.output is None or (use_reference and not record.expected):
+                continue
+            old = earlier.get((name, record.id))
+            if old is not None and old[0] == row.output:
+                reuse[len(jobs)] = old[1]
+            jobs.append((record.id, request(record, row.output)))
+            slots.append((name, index))
+
+    total = len(jobs)
+    done = failed = 0
+
+    def finish(job: int, row: RowOutput) -> None:
+        nonlocal done, failed
+        name, index = slots[job]
+        out[name][index] = row
+        done += 1
+        failed += not row.ok
+        on_progress(Progress(name, done, failed, total, row.record_id, row, metric=spec.key))
+
+    judge = metric.model
+    seed = judge.seed if judge.seed is not None else config.seed
+    await _run_requests(config, judge, seed, jobs, reuse, finish, backend, sleep, clock)
+    return out
+
+
+def _earlier_judgments(
+    previous: RunResults | None, spec: MetricSpec
+) -> dict[tuple[str, str], tuple[str, RowOutput]]:
+    """(model, record ID) -> (the output that was judged, the judgment), reusable when the
+    judge metric's settings are unchanged."""
+    if previous is None or spec.key not in previous.judgments:
+        return {}
+    if not any(s == spec for s in previous.config.metrics):
+        return {}
+    reusable = {}
+    for name, rows in previous.judgments[spec.key].items():
+        model_run = previous.runs.get(name)
+        if model_run is None:
+            continue
+        outputs = {row.record_id: row.output for row in model_run.rows}
+        for row in rows:
+            output = outputs.get(row.record_id)
+            if row.ok and output is not None:
+                reusable[(name, row.record_id)] = (output, row)
+    return reusable
 
 
 def _now() -> str:

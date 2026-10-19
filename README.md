@@ -11,7 +11,9 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 - **Spreadsheets in:** `.xlsx` (any sheet), `.csv`, `.tsv`, with encoding detection and Unicode-safe handling for non-Latin scripts. Validation catches empty cells, duplicate IDs, and garbled text before you spend API calls.
 - **Any model:** OpenRouter (including free models), Gemini, OpenAI, Anthropic, Ollama, and everything else [LiteLLM](https://docs.litellm.ai/docs/providers) supports, run side by side. You bring your own API keys.
 - **Robust runs:** per-model rate limits tuned for free tiers, retries with backoff, and resume after interruption. A cost and time estimate is shown before anything is sent.
-- **Metrics:** exact match, accuracy (with label extraction from chatty answers), precision/recall/F1, token F1. Tokenisation handles Chinese, Japanese, Thai, and Burmese.
+- **Metrics:** exact match, accuracy (with label extraction from chatty answers), precision/recall/F1, token F1, BLEU and chrF (via sacreBLEU), and ROUGE. Tokenisation handles Chinese, Japanese, Thai, and Burmese.
+- **LLM-as-judge:** a model grades open-ended answers against the reference or your own rubric, with its reasoning saved for every row.
+- **Statistics:** bootstrap confidence intervals for every score, and paired permutation or bootstrap tests between models, Holm-corrected.
 - **Paper-ready output:** Excel, a booktabs LaTeX table, and a YAML config recording model versions, prompt, seed, metric settings, and a hash of your data.
 
 [![PyPI](https://img.shields.io/pypi/v/paperlab-space)](https://pypi.org/project/paperlab-space/)
@@ -19,7 +21,7 @@ Give it an Excel or CSV file, say which columns are inputs and answers, pick mod
 
 **Documentation:** [paperlab.space/docs](https://paperlab.space/docs) (source in [docs/](docs/)).
 
-> **Status:** early release (0.1). See [PLAN.md](PLAN.md) for the roadmap: BLEU/chrF/ROUGE, LLM-as-judge, and significance tests are next.
+> **Status:** stable (1.0). The Python API, the `run.yaml` and `results.json` formats, and the CLI follow [semantic versioning](https://semver.org). See [PLAN.md](PLAN.md) for the roadmap.
 
 ## Install
 
@@ -69,7 +71,7 @@ The output folder contains:
 
 | File | What it is |
 | --- | --- |
-| `results.xlsx` | Summary sheet (scores, failures, cost), per-row outputs and scores, and the config |
+| `results.xlsx` | Summary sheet (scores with confidence intervals, failures, cost), per-row outputs and scores, significance tests, and the config |
 | `table.tex` | A booktabs table to `\input{}` into your paper |
 | `run.yaml` | The reproducibility config: re-run with `paperlab-space run run.yaml` |
 | `results.json` | Everything, for `paperlab-space run run.yaml --resume results.json` after an interruption |
@@ -109,6 +111,14 @@ metrics:
     trim_punctuation: false
   - name: f1
     average: macro                      # macro | micro | weighted
+  - bleu                                # sacreBLEU; also chrf, rouge1, rouge2, rougeL
+  - name: llm_judge                     # a model grades each output
+    model: gemini/gemini-3.5-pro
+    rubric: Is the answer correct and complete? {max_score} = fully, {min_score} = not at all.
+
+statistics:                             # on by default; shown with the defaults
+  significance: permutation             # paired test between models
+  baseline: null                        # set a model label to compare against it
 ```
 
 Custom metrics subclass `paperlab_space.metrics.Metric` and use the `@register` decorator.

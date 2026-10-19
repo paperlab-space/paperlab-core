@@ -105,3 +105,39 @@ def test_metrics_and_version() -> None:
     assert result.exit_code == 0 and "token_f1" in result.output
     result = cli.invoke(app, ["--version"])
     assert result.exit_code == 0 and "paperlab-space" in result.output
+
+
+def test_run_with_judge_and_statistics(
+    multilingual_xlsx: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def answer(model: ModelSpec, prompt: str, attempt: int) -> str | Exception:
+        if model.id == "openai/judge":
+            return "Fine.\nScore: 5"
+        return "hello" if model.id == "openai/a" else "bye"
+
+    monkeypatch.setattr(runner_module, "LiteLLMBackend", lambda: FakeBackend(answer))
+    config = tmp_path / "run.yaml"
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "dataset": {"path": str(multilingual_xlsx), "sheet": "test"},
+                "mapping": {"input": "source", "expected": "gold", "id": "id"},
+                "prompt": "{source}",
+                "models": ["openai/a", "openai/b"],
+                "metrics": ["exact_match", "chrf", {"name": "llm_judge", "model": "openai/judge"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = cli.invoke(app, ["estimate", str(config)])
+    assert result.exit_code == 0, result.output
+    assert "judge (judge for llm_judge)" in result.output
+
+    result = cli.invoke(app, ["run", str(config), "-o", str(tmp_path / "out"), "--yes"])
+    assert result.exit_code == 0, result.output
+    assert "judging (llm_judge)" in result.output
+    assert "Brackets: 95% bootstrap confidence intervals." in result.output
+    assert "Paired permutation tests:" in result.output and "p (holm)" in result.output
+
+    result = cli.invoke(app, ["metrics"])
+    assert "bleu" in result.output and "optional" in result.output

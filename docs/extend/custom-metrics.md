@@ -56,6 +56,31 @@ It returns a `MetricResult`, built with `self.result(...)`:
 | `description` | `""` | One sentence, shown by `paperlab-space metrics`. |
 | `requires_reference` | `True` | Set `False` for a metric that does not need an answer key, such as output length. Without an answer key, `references` is all `None`. |
 | `higher_is_better` | `True` | Set `False` where lower is better, so the LaTeX table bolds the right score. |
+| `averages_rows` | `False` | Set `True` if `value` is the mean of `per_row`. Confidence intervals and significance tests then resample the row scores, which is fast. |
+
+## Confidence intervals for your metric
+
+[Confidence intervals and significance tests](../guides/statistics.md) score your metric on resamples of the rows. With `averages_rows = True`, they average the resampled row scores. Otherwise they call `compute` once per resample, 1,000 times per model by default. That is fine for a quick metric. For a slow corpus-level metric, override `scorer`. It returns a function that scores the rows at the given positions, which may repeat:
+
+```python
+import numpy as np
+
+from paperlab_space.metrics import Metric
+
+
+class TotalLength(Metric):
+    name = "total_length"
+    requires_reference = False
+
+    def compute(self, predictions, references):
+        return self.result(float(sum(len(p or "") for p in predictions)))
+
+    def scorer(self, predictions, references):
+        lengths = np.array([len(p or "") for p in predictions])
+        return lambda indices: float(lengths[indices].sum())
+```
+
+To check that a metric can run on the data before any request is sent, override `check(self, data)` and raise `ConfigError`.
 
 ## Use it
 
@@ -91,12 +116,15 @@ See the [Python API reference](../reference/python.md#metrics) for their options
 `score` recomputes every configured metric for results you already have, without new requests. Use it to add a metric to an old run:
 
 ```python
-from paperlab_space import MetricSpec, RunResults, export, score
+from paperlab_space import MetricSpec, RunResults, export, score, stats
 
 results = RunResults.load_json("results-run/results.json")
 results.config = results.config.model_copy(
     update={"metrics": [*results.config.metrics, MetricSpec(name="starts_with")]}
 )
 results.scores = score(results)
+results.comparisons = stats.compare(results)
 export.write_all(results, "results-run/")
 ```
+
+This does not work for `llm_judge`, which needs new requests. To add a judge to an old run, see [LLM-as-judge](../guides/llm-judge.md#cost-and-time).

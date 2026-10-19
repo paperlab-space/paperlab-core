@@ -8,7 +8,14 @@ from typing import Annotated
 import typer
 import yaml
 from rich.console import Console
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskID,
+    TextColumn,
+    TimeRemainingColumn,
+)
 from rich.table import Table
 
 from paperlab_space import __version__
@@ -17,7 +24,7 @@ from paperlab_space.data import ColumnMapping, list_sheets, load_dataset
 from paperlab_space.errors import PaperLabError
 from paperlab_space.export import write_all
 from paperlab_space.metrics import available_metrics
-from paperlab_space.results import RunResults
+from paperlab_space.results import MetricResult, RunResults
 from paperlab_space.runner import Progress as RunProgress
 from paperlab_space.runner import estimate, prepare_data, run
 
@@ -187,10 +194,23 @@ def run_cmd(
         def on_progress(p: RunProgress) -> None:
             bar.update(tasks[p.model], completed=p.done, failed=p.failed)
 
+        judge_tasks: dict[str, TaskID] = {}
+
+        def on_judge_progress(p: RunProgress) -> None:
+            key = p.metric or ""
+            if key not in judge_tasks:
+                judge_tasks[key] = bar.add_task(f"judging ({key})", total=p.total, failed=0)
+            bar.update(judge_tasks[key], completed=p.done, failed=p.failed)
+
         checkpoint = out / "results.json"
         try:
             results = run(
-                cfg, data, on_progress=on_progress, previous=previous, checkpoint=checkpoint
+                cfg,
+                data,
+                on_progress=on_progress,
+                previous=previous,
+                checkpoint=checkpoint,
+                on_judge_progress=on_judge_progress,
             )
         except PaperLabError as exc:
             raise _fail(exc) from exc
@@ -220,21 +240,48 @@ def metrics() -> None:
     """List the available metrics."""
     table = Table("Metric", "Needs answer key", "Description")
     for name, cls in sorted(available_metrics().items()):
-        table.add_row(name, "yes" if cls.requires_reference else "no", cls.description)
+        needs = "yes" if cls.requires_reference else "optional" if name == "llm_judge" else "no"
+        table.add_row(name, needs, cls.description)
     console.print(table)
 
 
 def _print_scores(results: RunResults) -> None:
     keys = [s.key for s in results.config.metrics]
     table = Table("Model", *keys, "Failed", "Cost (USD)")
+
+    def cell(result: MetricResult | None) -> str:
+        if result is None or result.value is None:
+            return "--"
+        text = f"{result.value:.4f}"
+        if result.ci_low is not None and result.ci_high is not None:
+            text += f" [{result.ci_low:.3f}, {result.ci_high:.3f}]"
+        return text
+
     for name, model_run in results.runs.items():
         scores = results.scores.get(name, {})
-        cells = [
-            f"{scores[k].value:.4f}" if k in scores and scores[k].value is not None else "--"
-            for k in keys
-        ]
+        cells = [cell(scores.get(k)) for k in keys]
         cost = model_run.cost_usd
         table.add_row(
             name, *cells, str(model_run.n_failed), "--" if cost is None else f"{cost:.4f}"
         )
     console.print(table)
+    if any(r.ci_low is not None for s in results.scores.values() for r in s.values()):
+        level = results.config.statistics.confidence
+        console.print(f"Brackets: {level:.0%} bootstrap confidence intervals.")
+    if results.comparisons:
+        settings = results.config.statistics
+        tests = Table(
+            "Metric", "Model A", "Model B", "A - B", "p", f"p ({settings.correction})", ""
+        )
+        for c in results.comparisons:
+            tests.add_row(
+                c.metric,
+                c.model_a,
+                c.model_b,
+                "--" if c.difference is None else f"{c.difference:+.4f}",
+                "--" if c.p_value is None else f"{c.p_value:.4f}",
+                "--" if c.p_adjusted is None else f"{c.p_adjusted:.4f}",
+                "significant" if c.significant else "",
+            )
+        console.print(f"Paired {settings.significance} tests:")
+        console.print(tests)

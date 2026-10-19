@@ -7,7 +7,7 @@ config, so a run can be repeated from its exported config alone.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -121,6 +121,27 @@ class RetrySettings(_Strict):
     """Seconds to wait for one model response."""
 
 
+class StatisticsSettings(_Strict):
+    """Confidence intervals for every score, and significance tests between models."""
+
+    confidence: float = Field(0.95, gt=0, lt=1)
+    """Confidence level of the intervals. A difference is significant when its corrected
+    p-value is below ``1 - confidence``."""
+    intervals: bool = True
+    """Compute a bootstrap confidence interval for every score."""
+    significance: Literal["permutation", "bootstrap", "none"] = "permutation"
+    """Paired test between models: ``permutation`` (approximate randomisation),
+    ``bootstrap`` (paired bootstrap resampling), or ``none``."""
+    baseline: str | None = None
+    """Compare every other model with this one (a model label). Default: every pair."""
+    correction: Literal["holm", "bonferroni", "none"] = "holm"
+    """Multiple-comparison correction, applied per metric across the model pairs."""
+    resamples: int = Field(1000, ge=100)
+    """Bootstrap samples or permutation rounds."""
+    seed: int | None = None
+    """Seed for resampling. Defaults to the run ``seed``, or 0."""
+
+
 class RunConfig(_Strict):
     """Everything needed to run (and re-run) an evaluation."""
 
@@ -140,6 +161,8 @@ class RunConfig(_Strict):
     """Parallel requests per model (rate limits still apply)."""
     retry: RetrySettings = RetrySettings()
     """Retry and timeout settings."""
+    statistics: StatisticsSettings = StatisticsSettings()
+    """Confidence intervals and significance tests."""
 
     @model_validator(mode="after")
     def _check(self) -> RunConfig:
@@ -151,6 +174,11 @@ class RunConfig(_Strict):
             raise ValueError(
                 f"Models must have distinct labels; duplicated: {', '.join(dupes)}. "
                 "Set `label` to tell them apart (e.g. the same model at two temperatures)."
+            )
+        baseline = self.statistics.baseline
+        if baseline is not None and baseline not in names:
+            raise ValueError(
+                f"statistics.baseline {baseline!r} is not one of the models: {', '.join(names)}"
             )
         keys = [m.key for m in self.metrics]
         dupes = sorted({k for k in keys if keys.count(k) > 1})

@@ -7,8 +7,9 @@ abstract: >-
   results: per-row outputs and scores in Excel, a LaTeX comparison table, and a
   reproducibility config recording model versions, prompts, seeds, metric settings,
   and a hash of the data. It supports many providers through LiteLLM, rate-limit-aware
-  runs with retries and resume, and metrics that handle non-Latin scripts such as
-  Burmese, Thai, Chinese, and Japanese.
+  runs with retries and resume, metrics from exact match to BLEU, chrF, ROUGE, and
+  LLM-as-judge that handle non-Latin scripts such as Burmese, Thai, Chinese, and
+  Japanese, and bootstrap confidence intervals and paired significance tests.
 type: software
 authors:
   # Full name kept as one string (Burmese names have no family-name part).
@@ -19,8 +20,8 @@ doi: 10.5281/zenodo.23436738
 repository-code: "https://github.com/paperlab-space/paperlab-core"
 url: "https://paperlab.space"
 license: Apache-2.0
-version: 0.1.5
-date-released: 2026-10-18
+version: 1.0.0
+date-released: 2026-10-19
 keywords:
   - large language models
   - evaluation

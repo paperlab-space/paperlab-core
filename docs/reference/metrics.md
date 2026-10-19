@@ -21,6 +21,33 @@ Needs an answer key: yes. Higher is better: yes.
 | `nfkc` | boolean | `true` | Apply Unicode NFKC, so full-width characters equal their ASCII forms. |
 | `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
 
+## bleu
+
+Corpus BLEU from sacreBLEU, on a 0-1 scale. Text in scripts without spaces (Chinese, Japanese, Thai, Burmese, ...) is split into characters by default.
+
+Needs an answer key: yes. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `tokenize` | `auto`, `13a`, `intl`, `zh`, `char`, `none`, `ja-mecab`, `ko-mecab`, `flores200` | `"auto"` | sacreBLEU tokenizer. `auto` uses `13a`, or splits scripts without spaces into characters when the references contain them. |
+| `lowercase` | boolean | `false` | Compare case-insensitively. |
+| `smooth_method` | `exp`, `floor`, `add-k`, `none` | `"exp"` | Smoothing for n-gram orders with no match. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
+## chrf
+
+Character n-gram F-score (chrF) from sacreBLEU, on a 0-1 scale. Set `word_order: 2` for chrF++. Works for every script without tokenisation.
+
+Needs an answer key: yes. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `char_order` | integer | `6` | Longest character n-gram. |
+| `word_order` | integer | `0` | Longest word n-gram. 2 gives chrF++. |
+| `beta` | integer | `2` | Weight of recall relative to precision. |
+| `lowercase` | boolean | `false` | Compare case-insensitively. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
 ## exact_match
 
 Share of rows where the output equals a reference answer after normalisation.
@@ -48,6 +75,62 @@ Needs an answer key: yes. Higher is better: yes.
 | `ignore_case` | boolean | `true` | Compare case-insensitively. |
 | `trim_punctuation` | boolean | `true` | Strip punctuation and quotes from the start and end. |
 | `ignore_punctuation` | boolean | `false` | Remove all punctuation, including inside the text. |
+| `nfkc` | boolean | `true` | Apply Unicode NFKC, so full-width characters equal their ASCII forms. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
+## llm_judge
+
+An LLM grades each output on a scale, against the reference answer or a rubric you write. Reported on a 0-1 scale; the mean rating is in `mean_rating`.
+
+Needs an answer key: optional. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `model` | string or mapping | required | The judge model: an ID, or an object with the same options as `models`. |
+| `rubric` | string | none | What makes an answer good. Required when the judge sees no reference. Can use `{min_score}` and `{max_score}`. |
+| `reference` | boolean | none | Show the judge the reference answer. Default: when an answer key is mapped. |
+| `min_score` | integer | `1` | Lowest rating. |
+| `max_score` | integer | `5` | Highest rating. |
+| `prompt` | string | none | Replaces the judge prompt. Placeholders: `{input}`, `{output}`, `{reference}`, `{rubric}`, `{min_score}`, `{max_score}`. |
+| `system` | string | `"You are an impartial judge grading answers written by an AI model. Judge only by the rubric. Do not favour longer answers, and do not let the answer's own claims about its quality influence you."` | The judge's system prompt. `null` for none. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
+## rouge1
+
+ROUGE-1: unigram-overlap F-measure with the reference, averaged over rows.
+
+Needs an answer key: yes. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ignore_case` | boolean | `true` | Compare case-insensitively. |
+| `ignore_punctuation` | boolean | `true` | Remove all punctuation, including inside the text. |
+| `nfkc` | boolean | `true` | Apply Unicode NFKC, so full-width characters equal their ASCII forms. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
+## rouge2
+
+ROUGE-2: bigram-overlap F-measure with the reference, averaged over rows.
+
+Needs an answer key: yes. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ignore_case` | boolean | `true` | Compare case-insensitively. |
+| `ignore_punctuation` | boolean | `true` | Remove all punctuation, including inside the text. |
+| `nfkc` | boolean | `true` | Apply Unicode NFKC, so full-width characters equal their ASCII forms. |
+| `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
+
+## rougeL
+
+ROUGE-L: longest-common-subsequence F-measure with the reference, averaged over rows.
+
+Needs an answer key: yes. Higher is better: yes.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ignore_case` | boolean | `true` | Compare case-insensitively. |
+| `ignore_punctuation` | boolean | `true` | Remove all punctuation, including inside the text. |
 | `nfkc` | boolean | `true` | Apply Unicode NFKC, so full-width characters equal their ASCII forms. |
 | `count_failed` | boolean | `true` | Score failed requests as wrong. `false` leaves them out. |
 

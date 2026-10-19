@@ -17,6 +17,8 @@ from paperlab_space.runner.ratelimit import default_rpm
 OPENROUTER_FREE_DAILY_REQUESTS = 50
 DEFAULT_OUTPUT_TOKENS = 256
 MESSAGE_OVERHEAD_TOKENS = 8
+JUDGE_OUTPUT_TOKENS = 150
+"""A short justification and the score line."""
 
 
 @dataclass
@@ -34,20 +36,23 @@ class ModelEstimate:
 @dataclass
 class Estimate:
     models: list[ModelEstimate]
+    judges: list[ModelEstimate] = field(default_factory=list)
+    """LLM-judge requests, one entry per judge metric."""
 
     @property
     def cost_usd(self) -> float | None:
-        costs = [m.cost_usd for m in self.models]
+        costs = [m.cost_usd for m in self.models + self.judges]
         return None if any(c is None for c in costs) else sum(c for c in costs if c is not None)
 
     @property
     def minutes(self) -> float:
-        """Models run in parallel, so the slowest one sets the total."""
-        return max((m.minutes for m in self.models), default=0.0)
+        """Models run in parallel, so the slowest one sets the total. Judging follows."""
+        models = max((m.minutes for m in self.models), default=0.0)
+        return models + sum(j.minutes for j in self.judges)
 
     def __str__(self) -> str:
         lines = []
-        for m in self.models:
+        for m in self.models + self.judges:
             cost = "unknown cost" if m.cost_usd is None else f"~${m.cost_usd:.4f}"
             lines.append(
                 f"{m.model}: {m.requests} requests, ~{m.input_tokens:,} in / "
@@ -133,7 +138,80 @@ def estimate(
                 model.name, requests, input_tokens, output_tokens, cost, round(minutes, 2), warnings
             )
         )
-    return Estimate(estimates)
+    return Estimate(estimates, _judge_estimates(config, mapped, estimates, backend, latency_s))
+
+
+def _judge_estimates(
+    config: RunConfig,
+    data: MappedDataset,
+    models: list[ModelEstimate],
+    backend: Backend | None,
+    latency_s: float,
+) -> list[ModelEstimate]:
+    from paperlab_space.metrics import LLMJudge, get_metric
+
+    estimates = []
+    evaluated = {m.id for m in config.models}
+    for spec in config.metrics:
+        metric = get_metric(spec)
+        if not isinstance(metric, LLMJudge):
+            continue
+        use_reference = metric.uses_reference(data)
+        records = [r for r in data.records if r.expected or not use_reference]
+        # The judge prompt holds the task, the reference, the rubric, and the model's output.
+        base = sum(
+            sum(
+                approx_tokens(m["content"])
+                for m in metric.messages(
+                    config.prompt.render(r.fields)[-1]["content"],
+                    "",
+                    r.expected if use_reference else None,
+                )
+            )
+            + MESSAGE_OVERHEAD_TOKENS * 2
+            for r in records
+        )
+        input_tokens = output_tokens = 0
+        for m in models:
+            per_output = m.output_tokens // max(m.requests, 1)
+            input_tokens += base + per_output * len(records)
+        requests = len(records) * len(models)
+        judge = metric.model
+        if judge.max_tokens is not None:
+            output_tokens = min(JUDGE_OUTPUT_TOKENS, judge.max_tokens) * requests
+        else:
+            output_tokens = JUDGE_OUTPUT_TOKENS * requests
+        price = backend.price(judge) if backend is not None else lookup_price(judge)
+        cost = None if price is None else input_tokens * price[0] + output_tokens * price[1]
+        minutes = requests * latency_s / (judge.concurrency or config.concurrency) / 60
+        rpm = default_rpm(judge)
+        if rpm:
+            minutes = max(minutes, requests / rpm)
+        warnings = []
+        if price is None:
+            warnings.append(f"No price found for {judge.id}; cost is unknown.")
+        if judge.id in evaluated:
+            warnings.append(
+                f"{judge.id} is also one of the models being evaluated. LLM judges tend to "
+                "favour their own answers; consider a judge from another model family."
+            )
+        if is_reasoning_model(judge):
+            warnings.append(
+                "The judge is a reasoning model: hidden thinking tokens can make it cost "
+                "several times this estimate."
+            )
+        estimates.append(
+            ModelEstimate(
+                f"{judge.name} (judge for {spec.key})",
+                requests,
+                input_tokens,
+                output_tokens,
+                cost,
+                round(minutes, 2),
+                warnings,
+            )
+        )
+    return estimates
 
 
 def approx_tokens(text: str) -> int:

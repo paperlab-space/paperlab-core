@@ -101,16 +101,23 @@ The platform plugs in through: `LiteLLMBackend(api_keys=...)` (keys never enter 
 - Reproducibility YAML: core/LiteLLM/Python versions, provider-reported model versions, dataset SHA-256, full config (dataset path reduced to file name); loads back with `RunConfig.from_yaml`
 - Full results JSON for resuming and sharing
 
-### M5: CLI + first release (in progress)
+### M5: CLI + first release ✅
 - ✅ `paperlab-space init | validate | estimate | run [--resume] | metrics`
 - ✅ `CITATION.cff`, release workflow (PyPI trusted publishing)
-- ⬜ Configure the PyPI trusted publisher, then publish `0.1.0`
+- ✅ Configure the PyPI trusted publisher, then publish `0.1.0`
 - ✅ Docs in `docs/` (Markdown + `nav.json`), published at paperlab.space/docs by the platform frontend
 - ✅ Generated reference (`scripts/build_docs.py`): config file, metrics, and Python API from the source; checked in CI
 
-### After 0.1 (matches the product roadmap)
-- v1.1: separate answer-key file joined by row ID; BLEU, chrF, ROUGE (`sacrebleu`, `rouge-score`); Ollama and more providers documented and tested; Zawgyi detection for Burmese input
-- v1.2: LLM-as-judge (with reference, and rubric-only with user rubric); significance tests and bootstrap confidence intervals
+### M6: 1.0 (stable) ✅
+- ✅ `bleu`, `chrf` (chrF/chrF++) through sacreBLEU, with signatures; script-aware BLEU tokenisation for scripts without spaces
+- ✅ `rouge1`, `rouge2`, `rougeL` with the script-aware tokenizer, checked against `rouge-score` on English
+- ✅ `llm_judge`: with reference, or rubric-only; judge requests share the runner's rate limits, retries, resume, checkpoints, and estimates; judge responses saved per row
+- ✅ Bootstrap confidence intervals for every score; paired permutation and bootstrap tests, every pair or against a baseline, Holm/Bonferroni correction; Significance sheet and LaTeX daggers
+- ✅ Stability promise: semver for the Python API, `run.yaml`, `results.json`, and the CLI
+
+### After 1.0 (matches the product roadmap)
+- v1.1: separate answer-key file joined by row ID; Ollama and more providers documented and tested; Zawgyi detection for Burmese input; ROUGE stemming for English
+- v1.2: a `score` command to re-score saved results; judge agreement with human labels
 - v2: inter-annotator agreement metrics (Cohen's/Fleiss' kappa, Krippendorff's alpha)
 
 ## Quality bar

@@ -5,7 +5,16 @@ from __future__ import annotations
 from collections import Counter
 from typing import Literal
 
-from paperlab_space.metrics.base import Metric, Predictions, References, register
+import numpy as np
+
+from paperlab_space.metrics.base import (
+    Indices,
+    Metric,
+    Predictions,
+    References,
+    Scorer,
+    register,
+)
 from paperlab_space.metrics.normalize import Normalizer, extract_label, tokenize
 from paperlab_space.results import MetricResult
 
@@ -13,6 +22,8 @@ Average = Literal["macro", "micro", "weighted"]
 
 
 class _Normalizing(Metric):
+    averages_rows = True
+
     def __init__(
         self,
         ignore_case: bool = True,
@@ -100,6 +111,7 @@ class F1(Accuracy):
     description = (
         "Classification precision, recall, and F1 over the gold labels (macro-averaged by default)."
     )
+    averages_rows = False
 
     def __init__(
         self,
@@ -118,16 +130,23 @@ class F1(Accuracy):
         )
         self.average = average
 
-    def compute(self, predictions: Predictions, references: References) -> MetricResult:
-        gold: list[str] = []
-        predicted: list[str] = []
+    def _pairs(
+        self, predictions: Predictions, references: References
+    ) -> tuple[list[str | None], list[str | None], int]:
+        """Gold and predicted label per row (``None`` where the row is not scored)."""
+        gold: list[str | None] = []
+        predicted: list[str | None] = []
         failed = 0
         for prediction, refs in zip(predictions, references, strict=True):
             if not refs:
+                gold.append(None)
+                predicted.append(None)
                 continue
             if prediction is None:
                 failed += 1
                 if not self.count_failed:
+                    gold.append(None)
+                    predicted.append(None)
                     continue
                 answer = ""
             elif self.labels:
@@ -138,6 +157,60 @@ class F1(Accuracy):
             # With several valid answers, a prediction matching any of them is correct.
             gold.append(answer if answer in normalized_refs else normalized_refs[0])
             predicted.append(answer)
+        return gold, predicted, failed
+
+    def scorer(self, predictions: Predictions, references: References) -> Scorer:
+        gold_all, predicted_all, _ = self._pairs(predictions, references)
+        fixed = [self.normalize(label) for label in self.labels] if self.labels else None
+        names = sorted({*(fixed or []), *(g for g in gold_all if g is not None)})
+        index = {name: i for i, name in enumerate(names)}
+        other = len(names)  # predictions that are no class
+
+        def code(label: str | None) -> int:
+            return -1 if label is None else index.get(label, other)
+
+        gold = np.array([code(g) for g in gold_all])
+        predicted = np.array([code(p) for p in predicted_all])
+        allowed = np.zeros(other + 1, dtype=bool)
+        if fixed is not None:
+            allowed[[index[c] for c in fixed]] = True
+
+        def score(indices: Indices) -> float | None:
+            g, p = gold[indices], predicted[indices]
+            scored = g >= 0
+            g, p = g[scored], p[scored]
+            if not len(g):
+                return None
+            size = other + 1
+            support = np.bincount(g, minlength=size)
+            tp = np.bincount(g[g == p], minlength=size)
+            pred_count = np.bincount(p, minlength=size)
+            classes = allowed.copy() if fixed is not None else support > 0
+            classes[other] = False
+            tp, support, pred_count = tp[classes], support[classes], pred_count[classes]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                precision = np.where(pred_count > 0, tp / pred_count, 0.0)
+                recall = np.where(support > 0, tp / support, 0.0)
+                f1 = np.where(
+                    precision + recall > 0, 2 * precision * recall / (precision + recall), 0.0
+                )
+            if self.average == "macro":
+                return float(f1.mean()) if len(f1) else 0.0
+            n_gold = support.sum()
+            if self.average == "weighted":
+                return float((f1 * support).sum() / n_gold) if n_gold else 0.0
+            fp_total = (pred_count - tp).sum()
+            micro_p = tp.sum() / (tp.sum() + fp_total) if tp.sum() + fp_total else 0.0
+            micro_r = tp.sum() / n_gold if n_gold else 0.0
+            return _f1(float(micro_p), float(micro_r))
+
+        return score
+
+    def compute(self, predictions: Predictions, references: References) -> MetricResult:
+        pairs = self._pairs(predictions, references)
+        gold = [g for g in pairs[0] if g is not None]
+        predicted = [p for p in pairs[1] if p is not None]
+        failed = pairs[2]
 
         if not gold:
             return self.result(None, n_scored=0, extra={"failed": float(failed)})

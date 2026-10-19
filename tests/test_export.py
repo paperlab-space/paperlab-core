@@ -24,6 +24,7 @@ def results(multilingual_xlsx: Path) -> RunResults:
             "models": [{"id": "openai/good_model", "label": "Good_Model"}, "openai/bad"],
             "metrics": ["exact_match", "f1"],
             "seed": 1,
+            "statistics": {"intervals": False, "significance": "none"},
         }
     )
 

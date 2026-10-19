@@ -27,7 +27,14 @@ from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 import paperlab_space
-from paperlab_space.config import DatasetSpec, MetricSpec, ModelSpec, RetrySettings, RunConfig
+from paperlab_space.config import (
+    DatasetSpec,
+    MetricSpec,
+    ModelSpec,
+    RetrySettings,
+    RunConfig,
+    StatisticsSettings,
+)
 from paperlab_space.data import ColumnMapping
 from paperlab_space.metrics import available_metrics
 from paperlab_space.prompt import PromptTemplate
@@ -92,6 +99,7 @@ SECTIONS: dict[type[BaseModel], str] = {
     ModelSpec: "models",
     MetricSpec: "metrics",
     RetrySettings: "retry",
+    StatisticsSettings: "statistics",
 }
 
 EXAMPLE = {
@@ -138,7 +146,7 @@ def constraints(metadata: list[Any]) -> str:
 
 
 def scalar(value: Any) -> str:
-    if value is PydanticUndefined:
+    if value is PydanticUndefined or value is inspect.Parameter.empty:
         return "required"
     if value is None:
         return "none"
@@ -209,7 +217,29 @@ OPTIONS = {
     "remove_articles": "Remove English articles (a, an, the), as in SQuAD.",
     "nfkc": "Apply Unicode NFKC, so full-width characters equal their ASCII forms.",
     "count_failed": "Score failed requests as wrong. `false` leaves them out.",
+    "tokenize": "sacreBLEU tokenizer. `auto` uses `13a`, or splits scripts without spaces "
+    "into characters when the references contain them.",
+    "lowercase": "Compare case-insensitively.",
+    "smooth_method": "Smoothing for n-gram orders with no match.",
+    "char_order": "Longest character n-gram.",
+    "word_order": "Longest word n-gram. 2 gives chrF++.",
+    "beta": "Weight of recall relative to precision.",
+    "model": "The judge model: an ID, or an object with the same options as `models`.",
+    "rubric": "What makes an answer good. Required when the judge sees no reference. Can use "
+    "`{min_score}` and `{max_score}`.",
+    "reference": "Show the judge the reference answer. Default: when an answer key is mapped.",
+    "min_score": "Lowest rating.",
+    "max_score": "Highest rating.",
+    "prompt": "Replaces the judge prompt. Placeholders: `{input}`, `{output}`, `{reference}`, "
+    "`{rubric}`, `{min_score}`, `{max_score}`.",
+    "system": "The judge's system prompt. `null` for none.",
 }
+
+
+def needs(name: str, requires_reference: bool) -> str:
+    if requires_reference:
+        return "yes"
+    return "optional" if name == "llm_judge" else "no"
 
 
 def metrics_page() -> str:
@@ -232,7 +262,7 @@ def metrics_page() -> str:
         parts += [
             f"## {name}",
             md(cls.description),
-            f"Needs an answer key: {'yes' if cls.requires_reference else 'no'}. "
+            f"Needs an answer key: {needs(name, cls.requires_reference)}. "
             f"Higher is better: {'yes' if cls.higher_is_better else 'no'}.",
             "\n".join(rows),
         ]
@@ -264,6 +294,7 @@ API: list[tuple[str, str, list[str]]] = [
             "paperlab_space:MetricSpec",
             "paperlab_space:DatasetSpec",
             "paperlab_space:RetrySettings",
+            "paperlab_space:StatisticsSettings",
             "paperlab_space:ColumnMapping",
             "paperlab_space:PromptTemplate",
         ],
@@ -289,6 +320,17 @@ API: list[tuple[str, str, list[str]]] = [
             "paperlab_space:ModelRun",
             "paperlab_space:RowOutput",
             "paperlab_space:MetricResult",
+            "paperlab_space:Comparison",
+        ],
+    ),
+    (
+        "Statistics",
+        "Confidence intervals and significance tests. `from paperlab_space import stats`. "
+        "See [Statistics](../guides/statistics.md).",
+        [
+            "paperlab_space.stats:compare",
+            "paperlab_space.stats:confidence_interval",
+            "paperlab_space.stats:adjust",
         ],
     ),
     (
@@ -478,7 +520,7 @@ def class_md(cls: griffe.Class) -> list[str]:
 
 def python_page() -> str:
     documented = {entry.split(":")[1] for _, _, entries in API for entry in entries}
-    missing = sorted(set(paperlab_space.__all__) - documented - {"__version__", "export"})
+    missing = sorted(set(paperlab_space.__all__) - documented - {"__version__", "export", "stats"})
     if missing:
         sys.exit(f"Add these exports to API in scripts/build_docs.py: {', '.join(missing)}")
 

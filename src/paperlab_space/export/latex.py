@@ -13,6 +13,12 @@ METRIC_TITLES = {
     "accuracy": "Accuracy",
     "f1": "F1",
     "token_f1": "Token F1",
+    "bleu": "BLEU",
+    "chrf": "chrF",
+    "rouge1": "ROUGE-1",
+    "rouge2": "ROUGE-2",
+    "rougeL": "ROUGE-L",
+    "llm_judge": "Judge",
 }
 
 _SPECIAL = {
@@ -39,6 +45,8 @@ def latex_table(
     percent: bool = True,
     bold_best: bool = True,
     floating: bool = True,
+    ci: bool = False,
+    mark_significant: bool = True,
 ) -> str:
     """Build a model-by-metric comparison table.
 
@@ -47,6 +55,9 @@ def latex_table(
         percent: Show scores in [0, 1] as percentages.
         bold_best: Bold the best score in each column (all of them on ties).
         floating: Wrap the tabular in a ``table`` environment with caption and label.
+        ci: Show the confidence interval after each score, in brackets.
+        mark_significant: With a ``statistics.baseline``, mark scores that differ
+            significantly from the baseline's with a dagger.
     """
     keys = list(metrics) if metrics is not None else [s.key for s in results.config.metrics]
     unknown = [k for k in keys if k not in {s.key for s in results.config.metrics}]
@@ -69,14 +80,29 @@ def latex_table(
             higher = scored[0][1]
             best[key] = max(v for v, _ in scored) if higher else min(v for v, _ in scored)
 
+    settings = results.config.statistics
+    significant: set[tuple[str, str]] = set()
+    if mark_significant and settings.baseline is not None:
+        significant = {
+            (c.model_a, c.metric)
+            for c in results.comparisons
+            if c.significant and c.model_b == settings.baseline
+        }
+
+    def number(value: float) -> str:
+        return f"{value * 100 if percent else value:.{decimals}f}"
+
     def cell(model: str, key: str) -> str:
         result = values[(model, key)]
         if result is None or result.value is None:
             return "--"
-        shown = result.value * 100 if percent else result.value
-        text = f"{shown:.{decimals}f}"
+        text = number(result.value)
         if bold_best and len(results.runs) > 1 and round(result.value, 12) == round(best[key], 12):
             text = rf"\textbf{{{text}}}"
+        if (model, key) in significant:
+            text += r"$^\dagger$"
+        if ci and result.ci_low is not None and result.ci_high is not None:
+            text += rf" {{\scriptsize[{number(result.ci_low)}, {number(result.ci_high)}]}}"
         return text
 
     lines = []
@@ -95,6 +121,28 @@ def latex_table(
             caption = f"Results on {n} examples{unit}."
         else:
             caption = escape(caption)
+        shown_ci = ci and any(r is not None and r.ci_low is not None for r in values.values())
+        if shown_ci:
+            caption += (
+                f" Brackets: {settings.confidence:.0%} bootstrap confidence intervals.".replace(
+                    "%", r"\%"
+                )
+            )
+        if significant & {(m, k) for m in results.runs for k in keys}:
+            test = (
+                "paired permutation"
+                if settings.significance == "permutation"
+                else ("paired bootstrap")
+            )
+            correction = (
+                f", {settings.correction.capitalize()}-corrected"
+                if settings.correction != "none"
+                else ""
+            )
+            caption += (
+                rf" $^\dagger$: significantly different from {escape(settings.baseline or '')}"
+                rf" ({test} test{correction}, $p < {1 - settings.confidence:.2g}$)."
+            )
         lines.append(rf"\caption{{{caption}}}")
         if label:
             lines.append(rf"\label{{{label}}}")

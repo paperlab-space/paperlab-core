@@ -72,6 +72,14 @@ retry:
   base_delay: 2.0
   max_delay: 60.0
   timeout: 120.0
+statistics:
+  confidence: 0.95
+  intervals: true
+  significance: permutation
+  baseline: null
+  correction: holm
+  resamples: 1000
+  seed: null
 ```
 
 ## Top level
@@ -86,6 +94,7 @@ retry:
 | `seed` | integer | none | Default seed for models that do not set their own. |
 | `concurrency` | integer, > 0 | `4` | Parallel requests per model (rate limits still apply). |
 | `retry` | object, see [`retry`](#retry) | see below | Retry and timeout settings. |
+| `statistics` | object, see [`statistics`](#statistics) | see below | Confidence intervals and significance tests. |
 
 ## dataset
 
@@ -161,3 +170,17 @@ How failed requests are retried, and how long to wait for a response.
 | `base_delay` | number, ≥ 0 | `2.0` | Seconds before the first retry; doubles on each attempt. |
 | `max_delay` | number, ≥ 0 | `60.0` | Upper bound on the wait between retries, in seconds. |
 | `timeout` | number, > 0 | `120.0` | Seconds to wait for one model response. |
+
+## statistics
+
+Confidence intervals for every score, and significance tests between models.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `confidence` | number, > 0, < 1 | `0.95` | Confidence level of the intervals. A difference is significant when its corrected p-value is below `1 - confidence`. |
+| `intervals` | boolean | `true` | Compute a bootstrap confidence interval for every score. |
+| `significance` | `permutation`, `bootstrap`, `none` | `"permutation"` | Paired test between models: `permutation` (approximate randomisation), `bootstrap` (paired bootstrap resampling), or `none`. |
+| `baseline` | string | none | Compare every other model with this one (a model label). Default: every pair. |
+| `correction` | `holm`, `bonferroni`, `none` | `"holm"` | Multiple-comparison correction, applied per metric across the model pairs. |
+| `resamples` | integer, ≥ 100 | `1000` | Bootstrap samples or permutation rounds. |
+| `seed` | integer | none | Seed for resampling. Defaults to the run `seed`, or 0. |

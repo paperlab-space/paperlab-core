@@ -90,6 +90,37 @@ class MetricResult:
     n_scored: int = 0
     """Rows that counted towards the score."""
     higher_is_better: bool = True
+    ci_low: float | None = None
+    """Lower end of the bootstrap confidence interval, if computed."""
+    ci_high: float | None = None
+    """Upper end of the bootstrap confidence interval, if computed."""
+    info: dict[str, str] = field(default_factory=dict)
+    """Text details, e.g. the sacreBLEU signature to report in a paper."""
+
+
+@dataclass
+class Comparison:
+    """A paired significance test between two models on one metric."""
+
+    metric: str
+    """The metric's key."""
+    model_a: str
+    model_b: str
+    """The model compared against (the baseline, if one is set)."""
+    difference: float | None
+    """Score of ``model_a`` minus score of ``model_b``."""
+    p_value: float | None
+    """Two-sided p-value of the test."""
+    p_adjusted: float | None
+    """The p-value after the multiple-comparison correction."""
+    significant: bool
+    """Whether ``p_adjusted`` is below ``1 - confidence``."""
+    method: str
+    """``permutation`` or ``bootstrap``."""
+    ci_low: float | None = None
+    """Lower end of the bootstrap interval for the difference (bootstrap test only)."""
+    ci_high: float | None = None
+    """Upper end of the bootstrap interval for the difference (bootstrap test only)."""
 
 
 @dataclass
@@ -103,6 +134,10 @@ class RunResults:
     """Model name -> outputs, in config order."""
     scores: dict[str, dict[str, MetricResult]] = field(default_factory=dict)
     """Model name -> metric name -> result."""
+    comparisons: list[Comparison] = field(default_factory=list)
+    """Paired significance tests between models (see ``statistics`` in the config)."""
+    judgments: dict[str, dict[str, list[RowOutput]]] = field(default_factory=dict)
+    """LLM-judge metric key -> model name -> the judge's response for each row."""
     started_at: str | None = None
     """ISO 8601 timestamp (UTC)."""
     finished_at: str | None = None
@@ -142,6 +177,11 @@ class RunResults:
                 model: {name: asdict(result) for name, result in metrics.items()}
                 for model, metrics in self.scores.items()
             },
+            "comparisons": [asdict(c) for c in self.comparisons],
+            "judgments": {
+                key: {name: [asdict(row) for row in rows] for name, rows in models.items()}
+                for key, models in self.judgments.items()
+            },
         }
 
     def _shareable_config(self) -> dict[str, Any]:
@@ -179,11 +219,17 @@ class RunResults:
             model: {name: MetricResult(**result) for name, result in metrics.items()}
             for model, metrics in data.get("scores", {}).items()
         }
+        judgments = {
+            key: {name: [RowOutput(**row) for row in rows] for name, rows in models.items()}
+            for key, models in data.get("judgments", {}).items()
+        }
         return cls(
             config=config,
             data=dataset.map(config.mapping),
             runs=runs,
             scores=scores,
+            comparisons=[Comparison(**c) for c in data.get("comparisons", [])],
+            judgments=judgments,
             started_at=data.get("started_at"),
             finished_at=data.get("finished_at"),
             environment=data.get("environment", {}),

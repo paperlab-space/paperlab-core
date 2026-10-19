@@ -23,6 +23,7 @@ def run(
     on_progress: ProgressCallback | None = None,
     previous: RunResults | None = None,
     checkpoint: str | Path | None = None,
+    on_judge_progress: ProgressCallback | None = None,
 ) -> RunResults
 ```
 
@@ -44,6 +45,7 @@ async def arun(
     on_progress: ProgressCallback | None = None,
     previous: RunResults | None = None,
     checkpoint: str | Path | None = None,
+    on_judge_progress: ProgressCallback | None = None,
     sleep: Sleep = asyncio.sleep,
     clock: Clock = time.monotonic,
 ) -> RunResults
@@ -57,8 +59,9 @@ Run an evaluation asynchronously.
 - `data`: The data. If omitted, it is loaded from `config.dataset`. A plain `Dataset` is mapped with `config.mapping`.
 - `backend`: Where to send requests. Defaults to `LiteLLMBackend`.
 - `on_progress`: Called after each row finishes.
-- `previous`: Results of an earlier, interrupted run with the same config. Rows that already have an output are reused instead of requested again.
+- `previous`: Results of an earlier, interrupted run with the same models. Rows that already have an output are reused instead of requested again, and so are LLM-judge responses for unchanged outputs and judge settings.
 - `checkpoint`: A `results.json` path to save finished rows to while the run goes, and when it stops early (Ctrl+C, an error). Pass the file as `previous` to continue. When the run finishes, the full results are written there.
+- `on_judge_progress`: Called after each LLM-judge request finishes. Judging starts once every model has finished.
 - `sleep, clock`: Injection points for tests.
 
 ### estimate
@@ -85,17 +88,18 @@ as ballpark figures. `latency_s` is the assumed time per request.
 ```python
 from paperlab_space.runner import Estimate
 
-Estimate(models: list[ModelEstimate])
+Estimate(models: list[ModelEstimate], judges: list[ModelEstimate] = [])
 ```
 
 | Attribute | Type | Default | Description |
 | --- | --- | --- | --- |
 | `models` | `list[ModelEstimate]` | required |  |
+| `judges` | `list[ModelEstimate]` | `[]` | LLM-judge requests, one entry per judge metric. |
 
 **Properties**
 
 - `cost_usd` (`float | None`)
-- `minutes` (`float`): Models run in parallel, so the slowest one sets the total.
+- `minutes` (`float`): Models run in parallel, so the slowest one sets the total. Judging follows.
 
 ### Progress
 
@@ -109,6 +113,7 @@ Progress(
     total: int,
     record_id: str,
     row: RowOutput | None = None,
+    metric: str | None = None,
 )
 ```
 
@@ -122,6 +127,7 @@ A progress update, sent after each row finishes.
 | `total` | `int` | required | Rows to run for this model. |
 | `record_id` | `str` | required | The row that just finished. |
 | `row` | `RowOutput \| None` | `None` | Its output, so callers can checkpoint partial results (see `previous` in `arun`). |
+| `metric` | `str \| None` | `None` | For LLM-judge requests, the judge metric's key. `model` is then the model whose output was judged, and `done` and `total` count this metric's judge requests. |
 
 ### LiteLLMBackend
 
@@ -181,6 +187,7 @@ Everything needed to run (and re-run) an evaluation.
 | `seed` | `int \| None` | `None` | Default seed for models that do not set their own. |
 | `concurrency` | `int` | `4` | Parallel requests per model (rate limits still apply). |
 | `retry` | `RetrySettings` | `RetrySettings()` | Retry and timeout settings. |
+| `statistics` | `StatisticsSettings` | `StatisticsSettings()` | Confidence intervals and significance tests. |
 
 **`model_seed`**
 
@@ -286,6 +293,24 @@ How failed requests are retried, and how long to wait for a response.
 | `base_delay` | `float` | `2.0` | Seconds before the first retry; doubles on each attempt. |
 | `max_delay` | `float` | `60.0` | Upper bound on the wait between retries, in seconds. |
 | `timeout` | `float` | `120.0` | Seconds to wait for one model response. |
+
+### StatisticsSettings
+
+```python
+from paperlab_space import StatisticsSettings
+```
+
+Confidence intervals for every score, and significance tests between models.
+
+| Attribute | Type | Default | Description |
+| --- | --- | --- | --- |
+| `confidence` | `float` | `0.95` | Confidence level of the intervals. A difference is significant when its corrected p-value is below `1 - confidence`. |
+| `intervals` | `bool` | `True` | Compute a bootstrap confidence interval for every score. |
+| `significance` | `Literal['permutation', 'bootstrap', 'none']` | `'permutation'` | Paired test between models: `permutation` (approximate randomisation), `bootstrap` (paired bootstrap resampling), or `none`. |
+| `baseline` | `str \| None` | `None` | Compare every other model with this one (a model label). Default: every pair. |
+| `correction` | `Literal['holm', 'bonferroni', 'none']` | `'holm'` | Multiple-comparison correction, applied per metric across the model pairs. |
+| `resamples` | `int` | `1000` | Bootstrap samples or permutation rounds. |
+| `seed` | `int \| None` | `None` | Seed for resampling. Defaults to the run `seed`, or 0. |
 
 ### ColumnMapping
 
@@ -578,6 +603,8 @@ RunResults(
     data: MappedDataset,
     runs: dict[str, ModelRun],
     scores: dict[str, dict[str, MetricResult]] = {},
+    comparisons: list[Comparison] = [],
+    judgments: dict[str, dict[str, list[RowOutput]]] = {},
     started_at: str | None = None,
     finished_at: str | None = None,
     environment: dict[str, str] = ...,
@@ -592,6 +619,8 @@ Everything a run produced: outputs, scores, and the config and data behind them.
 | `data` | `MappedDataset` | required | The data the run used, with the mapping applied. |
 | `runs` | `dict[str, ModelRun]` | required | Model name -> outputs, in config order. |
 | `scores` | `dict[str, dict[str, MetricResult]]` | `{}` | Model name -> metric name -> result. |
+| `comparisons` | `list[Comparison]` | `[]` | Paired significance tests between models (see `statistics` in the config). |
+| `judgments` | `dict[str, dict[str, list[RowOutput]]]` | `{}` | LLM-judge metric key -> model name -> the judge's response for each row. |
 | `started_at` | `str \| None` | `None` | ISO 8601 timestamp (UTC). |
 | `finished_at` | `str \| None` | `None` | ISO 8601 timestamp (UTC). |
 | `environment` | `dict[str, str]` | `...` | Python, paperlab-space, and LiteLLM versions. |
@@ -700,6 +729,9 @@ MetricResult(
     extra: dict[str, float] = {},
     n_scored: int = 0,
     higher_is_better: bool = True,
+    ci_low: float | None = None,
+    ci_high: float | None = None,
+    info: dict[str, str] = {},
 )
 ```
 
@@ -713,6 +745,87 @@ The score of one metric for one model.
 | `extra` | `dict[str, float]` | `{}` | Secondary numbers, e.g. precision and recall next to F1. |
 | `n_scored` | `int` | `0` | Rows that counted towards the score. |
 | `higher_is_better` | `bool` | `True` |  |
+| `ci_low` | `float \| None` | `None` | Lower end of the bootstrap confidence interval, if computed. |
+| `ci_high` | `float \| None` | `None` | Upper end of the bootstrap confidence interval, if computed. |
+| `info` | `dict[str, str]` | `{}` | Text details, e.g. the sacreBLEU signature to report in a paper. |
+
+### Comparison
+
+```python
+from paperlab_space import Comparison
+
+Comparison(
+    metric: str,
+    model_a: str,
+    model_b: str,
+    difference: float | None,
+    p_value: float | None,
+    p_adjusted: float | None,
+    significant: bool,
+    method: str,
+    ci_low: float | None = None,
+    ci_high: float | None = None,
+)
+```
+
+A paired significance test between two models on one metric.
+
+| Attribute | Type | Default | Description |
+| --- | --- | --- | --- |
+| `metric` | `str` | required | The metric's key. |
+| `model_a` | `str` | required |  |
+| `model_b` | `str` | required | The model compared against (the baseline, if one is set). |
+| `difference` | `float \| None` | required | Score of `model_a` minus score of `model_b`. |
+| `p_value` | `float \| None` | required | Two-sided p-value of the test. |
+| `p_adjusted` | `float \| None` | required | The p-value after the multiple-comparison correction. |
+| `significant` | `bool` | required | Whether `p_adjusted` is below `1 - confidence`. |
+| `method` | `str` | required | `permutation` or `bootstrap`. |
+| `ci_low` | `float \| None` | `None` | Lower end of the bootstrap interval for the difference (bootstrap test only). |
+| `ci_high` | `float \| None` | `None` | Upper end of the bootstrap interval for the difference (bootstrap test only). |
+
+## Statistics
+
+Confidence intervals and significance tests. `from paperlab_space import stats`. See [Statistics](../guides/statistics.md).
+
+### compare
+
+```python
+from paperlab_space.stats import compare
+
+def compare(results: RunResults) -> list[Comparison]
+```
+
+Paired significance tests between models, as set in `config.statistics`.
+
+Needs `results.scores`. Compares every model with `baseline` if one is set, else
+every pair of models, on every metric. p-values are corrected per metric.
+
+### confidence_interval
+
+```python
+from paperlab_space.stats import confidence_interval
+
+def confidence_interval(
+    scorer: Scorer,
+    n: int,
+    *,
+    confidence: float = 0.95,
+    resamples: int = 1000,
+    seed: int = 0,
+) -> tuple[float, float] | None
+```
+
+Percentile bootstrap interval of the score over `n` rows.
+
+### adjust
+
+```python
+from paperlab_space.stats import adjust
+
+def adjust(p_values: Sequence[float | None], correction: str) -> list[float | None]
+```
+
+Correct p-values for multiple comparisons (`holm`, `bonferroni`, or `none`).
 
 ## Metrics
 
@@ -726,7 +839,11 @@ from paperlab_space import score
 def score(results: RunResults) -> dict[str, dict[str, MetricResult]]
 ```
 
-Compute every configured metric for every model in `results`.
+Compute every configured metric for every model in `results`, with confidence
+intervals if `config.statistics.intervals` is on.
+
+`llm_judge` metrics are scored from `results.judgments`; a model without judgments
+gets the value `None`.
 
 ### available_metrics
 
@@ -760,6 +877,7 @@ Base class for metrics. Subclasses declare their options as `__init__` arguments
 | `description` | `str` | `''` | One sentence, shown by `paperlab-space metrics`. |
 | `requires_reference` | `bool` | `True` | Whether the metric needs an expected-answer column. |
 | `higher_is_better` | `bool` | `True` | Which way is better, so the LaTeX table bolds the right score. |
+| `averages_rows` | `bool` | `False` | Whether the score is the mean of `per_row`. Such metrics are resampled from their row scores; others through `scorer`. |
 
 **`compute`**
 
@@ -768,6 +886,25 @@ def compute(predictions: Predictions, references: References) -> MetricResult
 ```
 
 Score all rows of one model.
+
+**`check`**
+
+```python
+def check(data: MappedDataset) -> None
+```
+
+Raise `ConfigError` if the metric cannot run on `data`. Called before any
+request is sent. The answer-key check for `requires_reference` is done already.
+
+**`scorer`**
+
+```python
+def scorer(predictions: Predictions, references: References) -> Scorer
+```
+
+A function that scores any resample of the rows, for confidence intervals and
+significance tests. The default recomputes `compute` on the resampled rows;
+override it with something faster for corpus-level metrics.
 
 **`result`**
 
@@ -852,7 +989,8 @@ from paperlab_space.export import write_excel
 def write_excel(results: RunResults, path: str | Path) -> Path
 ```
 
-Write `results` to an `.xlsx` workbook with Summary, Outputs, and Config sheets.
+Write `results` to an `.xlsx` workbook with Summary, Outputs, and Config sheets,
+and a Significance sheet when models were compared.
 
 ### write_latex
 
@@ -879,6 +1017,8 @@ def latex_table(
     percent: bool = True,
     bold_best: bool = True,
     floating: bool = True,
+    ci: bool = False,
+    mark_significant: bool = True,
 ) -> str
 ```
 
@@ -890,6 +1030,8 @@ Build a model-by-metric comparison table.
 - `percent`: Show scores in [0, 1] as percentages.
 - `bold_best`: Bold the best score in each column (all of them on ties).
 - `floating`: Wrap the tabular in a `table` environment with caption and label.
+- `ci`: Show the confidence interval after each score, in brackets.
+- `mark_significant`: With a `statistics.baseline`, mark scores that differ significantly from the baseline's with a dagger.
 
 ### write_repro
 
